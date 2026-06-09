@@ -43,7 +43,7 @@ class FolderReviewTests(unittest.TestCase):
                 "n",
                 "测试分公司",
                 "1",
-                "n",
+                "2",
                 "测试总公司",
                 "1",
                 "2",
@@ -70,10 +70,10 @@ class FolderReviewTests(unittest.TestCase):
                 "3",
                 "牵头单位",
                 "1",
-                "y",
+                "1",
                 "联合成员",
                 "2",
-                "y",
+                "1",
                 "0",
             ]
         )
@@ -92,7 +92,7 @@ class FolderReviewTests(unittest.TestCase):
         )
 
     def test_interactive_other_project_stage(self) -> None:
-        answers = iter(["1", "n", "测试单位", "1", "y", "3"])
+        answers = iter(["1", "n", "测试单位", "1", "1", "3"])
         _, form_answers = collect_form_answers(
             input_fn=lambda _: next(answers),
             output_fn=lambda _: None,

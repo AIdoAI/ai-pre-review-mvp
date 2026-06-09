@@ -25,7 +25,7 @@ python3 local_review/run_folder_review.py \
   --input "/path/to/测试样本2"
 ```
 
-运行时可直接选择是否联合申报、联合申报支持材料三选一、每家单位是否独立法人、项目当前进展等选项，无需修改`sample_manifest.json`。系统会递归查找该文件夹中的MinerU JSON，使用文件夹名作为样本名，并将本次选择保存为`generated_manifest.json`。默认输出至`local_review/output_folder_review`，也可通过`--output`指定其他目录。
+运行时可使用上下方向键移动、回车确认，直接选择是否联合申报、联合申报支持材料三选一、每家单位是否独立法人、项目当前进展等选项，无需修改`sample_manifest.json`。系统会递归查找该文件夹中的MinerU JSON，使用文件夹名作为样本名，并将本次选择保存为`generated_manifest.json`。默认输出至`local_review/output_folder_review`，也可通过`--output`指定其他目录。通过管道或自动化脚本运行时，仍兼容数字或`y/n`输入。
 
 原始PDF可以和MinerU JSON放在同一文件夹，但当前审查入口只读取MinerU JSON；未解析文件会记录为忽略项。
 
