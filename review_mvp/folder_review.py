@@ -20,6 +20,12 @@ ENTITY_TYPE_OPTIONS = {
     "5": "other",
 }
 
+JOINT_MATERIAL_OPTIONS = {
+    "1": "stamped_project_cooperation_agreement",
+    "2": "stamped_joint_declaration_agreement",
+    "3": "stamped_lead_declaration",
+}
+
 
 def infer_original_file(json_path: Path) -> str:
     stem = json_path.stem
@@ -128,6 +134,16 @@ def collect_form_answers(
             input_fn,
             output_fn,
         )
+        joint_material_type = ask_choice(
+            "联合申报材料：1=盖章项目合作协议，2=盖章联合申报协议，"
+            "3=盖章的牵头方申报声明 [2]：",
+            JOINT_MATERIAL_OPTIONS,
+            "2",
+            input_fn,
+            output_fn,
+        )
+    else:
+        joint_material_type = None
 
     applicants = []
     for index in range(1, applicant_count + 1):
@@ -164,14 +180,15 @@ def collect_form_answers(
         applicants.append(applicant)
 
     project_stage = ask_choice(
-        "\n项目阶段：0=暂不设置，1=正在建设，2=计划实施 [0]：",
-        {"0": None, "1": "building", "2": "planned"},
+        "\n项目当前进展：0=暂不设置，1=正在建设阶段，2=计划实施阶段，3=其他 [0]：",
+        {"0": None, "1": "building", "2": "planned", "3": "other"},
         "0",
         input_fn,
         output_fn,
     )
     return mode, {
         "is_joint_declaration": is_joint,
+        "joint_declaration_material_type": joint_material_type,
         "project_stage": project_stage,
         "applicants": applicants,
     }

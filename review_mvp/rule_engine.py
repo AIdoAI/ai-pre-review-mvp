@@ -108,6 +108,11 @@ def run_rules(
             # Structured entity checks validate one authorization per
             # non-independent applicant and its parent relationship.
             continue
+        if subject_structure.get("provided") and material_type == "联合申报协议":
+            # The current form accepts one of three joint-declaration support
+            # materials. Their existence, seals, and wording remain manual
+            # review until all three parser paths are implemented.
+            continue
         rule_id = rules["material_rule_ids"].get(material_type, f"MAT-{material_type}")
         candidates = m_index.get(material_type, [])
         confirmed = [

@@ -4,6 +4,7 @@
   "mode": "complete",
   "form_answers": {
     "is_joint_declaration": true,
+    "joint_declaration_material_type": "stamped_joint_declaration_agreement",
     "project_stage": "building",
     "applicants": [
       {

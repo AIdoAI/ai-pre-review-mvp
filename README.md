@@ -25,7 +25,7 @@ python3 local_review/run_folder_review.py \
   --input "/path/to/测试样本2"
 ```
 
-运行时可直接选择是否联合申报、每家单位是否独立法人等选项，无需修改`sample_manifest.json`。系统会递归查找该文件夹中的MinerU JSON，使用文件夹名作为样本名，并将本次选择保存为`generated_manifest.json`。默认输出至`local_review/output_folder_review`，也可通过`--output`指定其他目录。
+运行时可直接选择是否联合申报、联合申报支持材料三选一、每家单位是否独立法人、项目当前进展等选项，无需修改`sample_manifest.json`。系统会递归查找该文件夹中的MinerU JSON，使用文件夹名作为样本名，并将本次选择保存为`generated_manifest.json`。默认输出至`local_review/output_folder_review`，也可通过`--output`指定其他目录。
 
 原始PDF可以和MinerU JSON放在同一文件夹，但当前审查入口只读取MinerU JSON；未解析文件会记录为忽略项。
 
@@ -59,6 +59,8 @@ python3 local_review/run_qualification_profile.py \
 ## 申报主体结构
 
 正式对接优先使用平台表单输出`form_answers`：手动选择是否联合申报，并为每家申报单位选择是否独立法人。系统会自动生成内部`subject_structure`和动态上传要求，不通过OCR猜测这些选项。
+
+项目当前进展支持`building`（正在建设）、`planned`（计划实施）和`other`（其他）。选择`other`原则上不直接通过，但当前仅进入人工复核。联合申报支持材料使用`joint_declaration_material_type`记录三选一结果；现阶段其盖章、知识产权无异议及其他内容要求统一进入人工复核。选择“盖章的牵头方申报声明”时，报告会额外提示复核“联合申报单位简介”中的知识产权无异议表述。
 
 测试时也可以直接编辑`form_answers`。示例见`config/form_answers_example.json`。
 

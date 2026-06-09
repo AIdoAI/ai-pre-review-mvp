@@ -8,6 +8,12 @@ from typing import Any
 
 APPLICANT_ROLES = {"applicant", "lead", "member"}
 
+JOINT_MATERIAL_LABELS = {
+    "stamped_project_cooperation_agreement": "盖章项目合作协议",
+    "stamped_joint_declaration_agreement": "盖章联合申报协议",
+    "stamped_lead_declaration": "盖章的牵头方申报声明",
+}
+
 
 def finding(rule_id: str, status: str, description: str, reason: str) -> dict[str, Any]:
     return {
@@ -66,6 +72,7 @@ def subject_structure_from_form_answers(form_answers: dict[str, Any]) -> dict[st
 
     return {
         "declaration_type": declaration_type,
+        "joint_declaration_material_type": form_answers.get("joint_declaration_material_type"),
         "project_stage": form_answers.get("project_stage"),
         "entities": entities,
     }
@@ -75,13 +82,15 @@ def build_upload_requirements(structure: dict[str, Any]) -> list[dict[str, Any]]
     """Describe dynamic upload zones implied by confirmed form selections."""
     requirements: list[dict[str, Any]] = []
     if structure.get("declaration_type") == "joint":
+        joint_material_type = structure.get("joint_declaration_material_type")
+        document_type = JOINT_MATERIAL_LABELS.get(joint_material_type, "联合申报支持材料（三选一）")
         requirements.append(
             {
-                "upload_key": "joint_declaration_agreement",
-                "document_type": "联合申报协议",
+                "upload_key": "joint_declaration_support_material",
+                "document_type": document_type,
                 "owner_entity_id": None,
                 "supports_entity_id": None,
-                "reason": "表单选择联合申报",
+                "reason": "表单选择联合申报，需从三类支持材料中选择一类上传",
             }
         )
     entities = structure.get("entities", [])
@@ -136,6 +145,7 @@ def prepare_subject_structure(submission: dict[str, Any]) -> dict[str, Any]:
             "provided": False,
             "input_source": "none",
             "declaration_type": "unspecified",
+            "joint_declaration_material_type": None,
             "project_stage": submission.get("project_stage"),
             "entities": [],
             "applicant_entity_ids": [],
@@ -147,6 +157,7 @@ def prepare_subject_structure(submission: dict[str, Any]) -> dict[str, Any]:
     structure = deepcopy(raw)
     input_source = "form_answers" if form_answers else "subject_structure"
     declaration_type = structure.get("declaration_type", "unspecified")
+    joint_material_type = structure.get("joint_declaration_material_type")
     project_stage = structure.get("project_stage") or submission.get("project_stage")
     entities = structure.get("entities", [])
     findings: list[dict[str, Any]] = []
@@ -219,6 +230,31 @@ def prepare_subject_structure(submission: dict[str, Any]) -> dict[str, Any]:
             )
     elif declaration_type == "joint":
         legacy_conditions.add("joint_declaration")
+        if joint_material_type in JOINT_MATERIAL_LABELS:
+            extra_note = (
+                "；选择牵头方申报声明时，还需检查“联合申报单位简介”是否补充"
+                "对知识产权无异议表述"
+                if joint_material_type == "stamped_lead_declaration"
+                else ""
+            )
+            findings.append(
+                finding(
+                    "MR-JOINT-SUPPORT-MATERIAL",
+                    "manual_review",
+                    "联合申报支持材料",
+                    f"表单选择：{JOINT_MATERIAL_LABELS[joint_material_type]}；"
+                    f"材料存在性、盖章及相关表述暂转人工复核{extra_note}",
+                )
+            )
+        else:
+            findings.append(
+                finding(
+                    "MR-JOINT-SUPPORT-MATERIAL",
+                    "manual_review",
+                    "联合申报支持材料",
+                    "未明确选择三类联合申报支持材料中的哪一类，需人工复核",
+                )
+            )
         if 2 <= len(applicants) <= 3:
             findings.append(
                 finding(
@@ -362,11 +398,21 @@ def prepare_subject_structure(submission: dict[str, Any]) -> dict[str, Any]:
         legacy_conditions.add("project_stage_building")
     elif project_stage == "planned":
         legacy_conditions.add("project_stage_planned")
+    elif project_stage == "other":
+        findings.append(
+            finding(
+                "MR-PROJECT-STAGE-OTHER",
+                "manual_review",
+                "项目当前进展",
+                "表单选择“其他”；原则上项目应处于正在建设或计划实施阶段，需人工复核",
+            )
+        )
 
     return {
         "provided": True,
         "input_source": input_source,
         "declaration_type": declaration_type,
+        "joint_declaration_material_type": joint_material_type,
         "project_stage": project_stage,
         "entities": entities,
         "applicant_entity_ids": [entity["entity_id"] for entity in applicants if entity.get("entity_id")],

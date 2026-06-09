@@ -95,6 +95,7 @@ class SubjectStructureTests(unittest.TestCase):
             {
                 "form_answers": {
                     "is_joint_declaration": True,
+                    "joint_declaration_material_type": "stamped_lead_declaration",
                     "applicants": [
                         {
                             "entity_id": "E01",
@@ -116,8 +117,28 @@ class SubjectStructureTests(unittest.TestCase):
         self.assertEqual(statuses(structure, "HR-1.2-COUNT"), ["pass"])
         self.assertEqual(
             [item["document_type"] for item in structure["upload_requirements"]],
-            ["联合申报协议"],
+            ["盖章的牵头方申报声明"],
         )
+        self.assertEqual(statuses(structure, "MR-JOINT-SUPPORT-MATERIAL"), ["manual_review"])
+
+    def test_other_project_stage_requires_manual_review_without_stage_condition(self) -> None:
+        structure = prepare_subject_structure(
+            {
+                "form_answers": {
+                    "is_joint_declaration": False,
+                    "project_stage": "other",
+                    "applicants": [
+                        {
+                            "entity_id": "E01",
+                            "is_independent_legal_person": True,
+                        }
+                    ],
+                }
+            }
+        )
+        self.assertEqual(statuses(structure, "MR-PROJECT-STAGE-OTHER"), ["manual_review"])
+        self.assertNotIn("project_stage_building", structure["derived_conditions"])
+        self.assertNotIn("project_stage_planned", structure["derived_conditions"])
 
     def test_form_answers_are_authoritative_over_subject_structure(self) -> None:
         structure = prepare_subject_structure(

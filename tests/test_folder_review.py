@@ -67,6 +67,7 @@ class FolderReviewTests(unittest.TestCase):
                 "y",
                 "2",
                 "1",
+                "3",
                 "牵头单位",
                 "1",
                 "y",
@@ -85,6 +86,18 @@ class FolderReviewTests(unittest.TestCase):
         self.assertEqual(len(form_answers["applicants"]), 2)
         self.assertTrue(form_answers["applicants"][0]["is_lead"])
         self.assertFalse(form_answers["applicants"][1]["is_lead"])
+        self.assertEqual(
+            form_answers["joint_declaration_material_type"],
+            "stamped_lead_declaration",
+        )
+
+    def test_interactive_other_project_stage(self) -> None:
+        answers = iter(["1", "n", "测试单位", "1", "y", "3"])
+        _, form_answers = collect_form_answers(
+            input_fn=lambda _: next(answers),
+            output_fn=lambda _: None,
+        )
+        self.assertEqual(form_answers["project_stage"], "other")
 
     def test_build_manifest_uses_folder_name(self) -> None:
         scan_result = {
