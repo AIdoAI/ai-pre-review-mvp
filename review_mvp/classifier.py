@@ -41,6 +41,7 @@ def classify_text(text: str, material_types: list[dict[str, Any]]) -> dict[str, 
                 "confidence": round(min(score, 0.99), 2),
                 "start_hits": starts,
                 "keyword_hits": keywords,
+                "filename_hits": [],
                 "priority": item.get("priority", 0),
             }
         )
@@ -52,9 +53,76 @@ def classify_text(text: str, material_types: list[dict[str, Any]]) -> dict[str, 
             "confidence": 0.0,
             "start_hits": [],
             "keyword_hits": [],
+            "filename_hits": [],
             "priority": 0,
         }
     return max(candidates, key=lambda item: (item["confidence"], item["priority"]))
+
+
+FILENAME_HINTS = [
+    (r"信用中国|信用报告|政府采购网.*信用", "信用记录证明"),
+    (r"联合(?:申报|申请).*协议", "联合申报协议"),
+    (r"法定代表人.*无重大违法", "法定代表人无重大违法记录声明函"),
+    (r"申报材料真实性承诺|真实性承诺书", "申报材料真实性承诺书"),
+    (r"营业执照", "营业执照"),
+    (r"研发能力|研发资质|专利|软著|软件著作权", "研发资质证明"),
+    (r"研发证明函", "行业能力或项目经验说明"),
+    (r"相关荣誉|荣誉证明|获奖", "荣誉资质证明"),
+]
+
+
+def classify_filename(filename: str, material_types: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """Return a conservative single-purpose filename hint."""
+    if re.search(r"样本\d|测试(?:文件|材料|样例)?", filename, re.IGNORECASE):
+        return None
+    matches = [
+        (pattern, document_type)
+        for pattern, document_type in FILENAME_HINTS
+        if re.search(pattern, filename, re.IGNORECASE)
+    ]
+    distinct_types = {document_type for _, document_type in matches}
+    if len(distinct_types) != 1:
+        return None
+    document_type = distinct_types.pop()
+    material_type = next(
+        (item for item in material_types if item["name"] == document_type),
+        None,
+    )
+    if not material_type:
+        return None
+    return {
+        "id": material_type["id"],
+        "document_type": material_type["name"],
+        "category": material_type["category"],
+        "confidence": 0.98,
+        "start_hits": [],
+        "keyword_hits": [],
+        "filename_hits": [pattern for pattern, _ in matches],
+        "priority": material_type.get("priority", 0),
+    }
+
+
+def apply_filename_hint(
+    classification: dict[str, Any],
+    filename_hint: dict[str, Any] | None,
+) -> dict[str, Any]:
+    if not filename_hint:
+        classification.setdefault("filename_hits", [])
+        return classification
+    if classification["document_type"] == filename_hint["document_type"]:
+        classification["filename_hits"] = filename_hint["filename_hits"]
+        classification["confidence"] = max(
+            classification["confidence"],
+            filename_hint["confidence"],
+        )
+        return classification
+    if (
+        classification["document_type"] == "待分类材料"
+        or classification["confidence"] < filename_hint["confidence"]
+    ):
+        return filename_hint.copy()
+    classification.setdefault("filename_hits", [])
+    return classification
 
 
 def classify_block(block: dict[str, Any], material_types: list[dict[str, Any]]) -> dict[str, Any]:
@@ -88,7 +156,11 @@ def strengthen_material(material: dict[str, Any], classification: dict[str, Any]
     if classification["document_type"] != material["document_type"]:
         return
     material["confidence"] = max(material["confidence"], classification["confidence"])
-    for source_key, target_key in (("start_hits", "start_patterns"), ("keyword_hits", "keywords")):
+    for source_key, target_key in (
+        ("start_hits", "start_patterns"),
+        ("keyword_hits", "keywords"),
+        ("filename_hits", "filename_patterns"),
+    ):
         current = material["classification_evidence"][target_key]
         material["classification_evidence"][target_key] = list(
             dict.fromkeys(current + classification[source_key])
@@ -104,6 +176,7 @@ def new_material(classification: dict[str, Any]) -> dict[str, Any]:
         "classification_evidence": {
             "start_patterns": classification["start_hits"],
             "keywords": classification["keyword_hits"],
+            "filename_patterns": classification.get("filename_hits", []),
         },
         "segments": [],
         "_texts": [],
@@ -138,11 +211,18 @@ def segment_documents(
     for document in normalized_documents:
         source_file = document["source_file"]
         original_file = document.get("original_file") or Path(source_file).name
+        filename_hint = classify_filename(original_file, material_types)
         current = None
         for page in document["pages"]:
-            page_class = classify_text(page["full_text"], material_types)
+            page_class = apply_filename_hint(
+                classify_text(page["full_text"], material_types),
+                filename_hint,
+            )
             for block_position, block in enumerate(page["blocks"]):
-                block_class = classify_block(block, material_types)
+                block_class = apply_filename_hint(
+                    classify_block(block, material_types),
+                    filename_hint,
+                )
                 strong_start = bool(block_class["start_hits"])
 
                 # Image-only or weak first blocks often precede the visible

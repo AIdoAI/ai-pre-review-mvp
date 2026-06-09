@@ -279,8 +279,17 @@ def run_rules(
             status, reason = "manual_review", "营业执照未直接体现明确国资性质，需结合股权或上级单位材料判断"
         results.append(result("MR-ENTITY-TYPE", status, "企业国资身份综合判断", reason, license_type_material["pages"]))
 
+    trusted_company_name_materials = {
+        "营业执照",
+        "申报材料真实性承诺书",
+        "申报书",
+        "法定代表人无重大违法记录声明函",
+        "信用记录证明",
+    }
     company_names: dict[str, set[str]] = {}
     for item in extracted:
+        if item["document_type"] not in trusted_company_name_materials:
+            continue
         value = field_value(item, "company_name")
         if value:
             company_names.setdefault(value, set()).add(item["document_type"])

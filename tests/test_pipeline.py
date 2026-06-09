@@ -10,11 +10,36 @@ import sys
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "local_review"))
 
+from review_mvp.classifier import classify_filename, load_material_types
+from review_mvp.report import compact_evidence_pages, compact_number_list
+
 from review_mvp.pipeline import run_manifest
 from review_mvp.presence import assess_material_presence
 
 
 class PipelineTests(unittest.TestCase):
+    def test_filename_hints_for_common_uploaded_materials(self) -> None:
+        material_types = load_material_types(ROOT / "local_review/config/material_types.json")
+        self.assertEqual(
+            classify_filename("02 信用报告.pdf", material_types)["document_type"],
+            "信用记录证明",
+        )
+        self.assertEqual(
+            classify_filename("08 联合申请协议书.pdf", material_types)["document_type"],
+            "联合申报协议",
+        )
+        self.assertEqual(
+            classify_filename("中农易讯研发证明函.pdf", material_types)["document_type"],
+            "行业能力或项目经验说明",
+        )
+
+    def test_report_page_lists_are_compacted(self) -> None:
+        self.assertEqual(compact_number_list([1, 2, 3, 5, 7, 8]), "1-3, 5, 7-8")
+        self.assertEqual(
+            compact_evidence_pages(["a.pdf#P1", "a.pdf#P2", "a.pdf#P3", "b.pdf#P4"]),
+            "a.pdf#P1-3、b.pdf#P4",
+        )
+
     def test_required_material_keyword_only_is_suspected(self) -> None:
         assessment = assess_material_presence(
             {

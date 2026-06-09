@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Any
+import re
 
 
 STATUS_LABELS = {
@@ -12,6 +13,40 @@ STATUS_LABELS = {
     "warning": "建议补正",
     "not_assessable": "无法判断",
 }
+
+
+def compact_number_list(values: list[int] | int | None) -> str:
+    if isinstance(values, int):
+        return str(values)
+    numbers = sorted(set(values or []))
+    if not numbers:
+        return ""
+    ranges: list[str] = []
+    start = previous = numbers[0]
+    for number in numbers[1:]:
+        if number == previous + 1:
+            previous = number
+            continue
+        ranges.append(str(start) if start == previous else f"{start}-{previous}")
+        start = previous = number
+    ranges.append(str(start) if start == previous else f"{start}-{previous}")
+    return ", ".join(ranges)
+
+
+def compact_evidence_pages(pages: list[str] | None) -> str:
+    grouped: dict[str, list[int]] = {}
+    ungrouped: list[str] = []
+    for page in pages or []:
+        match = re.match(r"^(.*)#P(\d+)$", page)
+        if not match:
+            ungrouped.append(page)
+            continue
+        grouped.setdefault(match.group(1), []).append(int(match.group(2)))
+    compacted = [
+        f"{source}#P{compact_number_list(numbers)}"
+        for source, numbers in grouped.items()
+    ]
+    return "、".join(compacted + ungrouped)
 
 
 def render_report(
@@ -91,8 +126,8 @@ def render_report(
     for item in submission.get("_parse_details", []):
         lines.append(
             f'| {item.get("original_file", "")} | {item["path"]} | {item["parse_status"]} | '
-            f'{item.get("total_pages") or ""} | {item.get("parsed_pages") or ""} | '
-            f'{item.get("empty_pages") or ""} |'
+            f'{item.get("total_pages") or ""} | {compact_number_list(item.get("parsed_pages"))} | '
+            f'{compact_number_list(item.get("empty_pages"))} |'
         )
     lines.extend(
         [
@@ -116,7 +151,7 @@ def render_report(
             f'{item.get("requirement", "unknown")} | '
             f'{presence.get("level", "")}：{presence.get("reason", "")} | '
             f'{item["confidence"]:.2f} | '
-            f'{"、".join(item["pages"])} | {preview} |'
+            f'{compact_evidence_pages(item["pages"])} | {preview} |'
         )
 
     lines.extend(["", "## 规则结果", "", "| 规则 | 状态 | 说明 | 原因 | 证据页码 |", "|---|---|---|---|---|"])
@@ -124,7 +159,7 @@ def render_report(
         lines.append(
             f'| {item["rule_id"]} | {STATUS_LABELS[item["status"]]} | '
             f'{item["description"]} | {item["reason"].replace("|", " ")} | '
-            f'{"、".join(item["evidence_pages"])} |'
+            f'{compact_evidence_pages(item["evidence_pages"])} |'
         )
 
     lines.extend(
