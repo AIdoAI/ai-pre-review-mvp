@@ -32,6 +32,19 @@ python3 local_review/run_review.py \
 python3 -m unittest discover -s local_review/tests -v
 ```
 
+生成文件名资质画像：
+
+```bash
+python3 local_review/run_qualification_profile.py \
+  --input "/path/to/企业资质文件夹" \
+  --output local_review/output_qualification/企业名称 \
+  --entity-name "企业名称"
+```
+
+该模块只读取文件名和目录结构，不读取正文。它用于向专家展示专利、软著、论文、奖项等候选画像，不参与必要材料缺失判断。详细说明见`QUALIFICATION_PROFILE_DESIGN.md`。
+
+若总目录按企业分文件夹存放，增加`--group-by-first-level`即可分别统计；总目录中的散落文件会进入`未归属文件`分组。
+
 ## 两种审查模式
 
 - `complete`：完整申报材料包。成功解析后未发现必传材料，可以判定缺失。
@@ -111,3 +124,4 @@ python3 -m unittest discover -s local_review/tests -v
 - `config/rule_capabilities.json`
 - `TEST_REPORT.md`
 - `UPWARD_BRIEF.md`
+- `QUALIFICATION_PROFILE_DESIGN.md`

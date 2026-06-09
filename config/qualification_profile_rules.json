@@ -1,0 +1,74 @@
+{
+  "version": "1.0",
+  "deduplication": {
+    "fuzzy_threshold": 0.96
+  },
+  "ai_keywords": [
+    "人工智能",
+    "AI",
+    "YOLO",
+    "深度学习",
+    "机器学习",
+    "计算机视觉",
+    "机器视觉",
+    "智能检测",
+    "智能识别",
+    "大模型",
+    "多模态",
+    "神经网络"
+  ],
+  "categories": [
+    {
+      "id": "software_copyright",
+      "label": "软件著作权候选",
+      "summary_label": "软件著作权候选",
+      "confidence": 0.98,
+      "keywords": ["计算机软件著作权", "软件著作权", "软著", "软件登记证书"]
+    },
+    {
+      "id": "patent",
+      "label": "专利候选",
+      "summary_label": "专利候选",
+      "confidence": 0.98,
+      "keywords": ["发明专利", "实用新型专利", "外观设计专利", "专利证书", "专利授权"]
+    },
+    {
+      "id": "award",
+      "label": "奖项或荣誉候选",
+      "summary_label": "奖项或荣誉",
+      "confidence": 0.95,
+      "keywords": ["获奖", "奖励", "荣誉", "优秀论文奖", "科技进步奖", "一等奖", "二等奖", "三等奖"]
+    },
+    {
+      "id": "platform_approval",
+      "label": "平台或项目获批候选",
+      "summary_label": "平台或项目获批",
+      "confidence": 0.9,
+      "keywords": ["获批", "批复", "重点实验室", "工程技术研究中心", "企业技术中心", "创新中心", "研发中心"]
+    },
+    {
+      "id": "certification",
+      "label": "认证或认定候选",
+      "summary_label": "认证或认定",
+      "confidence": 0.9,
+      "keywords": ["认证证书", "高新技术企业", "专精特新", "ISO", "体系认证", "资质证书"]
+    },
+    {
+      "id": "license",
+      "label": "许可证候选",
+      "summary_label": "许可证",
+      "confidence": 0.95,
+      "keywords": ["许可证", "营业执照", "经营许可"]
+    }
+  ],
+  "electronic_certificate_patent_title_patterns": [
+    "^一种.+(?:方法|系统|装置|设备|平台|应用)$",
+    "^基于.+(?:方法|系统|装置|模型)$",
+    ".+在.+中的应用$"
+  ],
+  "paper_filename": {
+    "confidence": 0.86,
+    "minimum_latin_words": 6,
+    "keywords": ["论文", "期刊文章", "研究成果"]
+  }
+}

@@ -25,8 +25,14 @@
 | 字段抽取 | `review_mvp/extractor.py` | 抽取企业名称、信用代码、联系人等 |
 | 规则引擎 | `review_mvp/rule_engine.py` | 执行存在性和确定性规则 |
 | 报告生成 | `review_mvp/report.py` | 输出Markdown人工审查报告 |
+| 资质画像 | `review_mvp/qualification_profile.py` | 仅根据文件名分类、去重、统计资质成果候选 |
 | 批量入口 | `run_review.py` | 批量运行样本清单 |
+| 资质画像入口 | `run_qualification_profile.py` | 生成专家用资质画像JSON与Markdown |
 | 能力声明 | `config/rule_capabilities.json` | 声明每条业务规则当前是否可实现及能否自动拒绝 |
+
+## 资质画像顺序
+
+资质画像与必要材料审查分开执行。系统可以并行生成画像，但只有通过形式审查后才向专家展示。专利、软著、论文、奖项等候选项不参与缺件打回；文件名初步分类也不能证明权属、有效性或含金量。
 
 ## 长文件处理
 
