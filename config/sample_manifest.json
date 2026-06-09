@@ -1,0 +1,58 @@
+{
+  "submissions": [
+    {
+      "submission_id": "sample-qualification-compliance-1",
+      "name": "样本2a：资格合规局部样本",
+      "mode": "partial",
+      "conditions": [],
+      "files": [
+        {
+          "path": "../../AI预审 样本2/MinerU_样本2a（资格合规1）：扫描pdf3__20260608091729.json",
+          "original_file": "样本2a（资格合规1）：扫描pdf3.pdf",
+          "parse_status": "success"
+        },
+        {
+          "path": "../../AI预审 样本2/MinerU_样本2a（资格合规1）：扫描w2p2__20260608091659.json",
+          "original_file": "样本2a（资格合规1）：扫描w2p2.pdf",
+          "parse_status": "success"
+        }
+      ],
+      "expected_materials": ["营业执照", "申报材料真实性承诺书"]
+    },
+    {
+      "submission_id": "sample-rd-qualification-2",
+      "name": "样本2：研发与荣誉资质局部样本",
+      "mode": "partial",
+      "conditions": [],
+      "files": [
+        {
+          "path": "../../AI预审 样本2/MinerU_样本2（研发资质2）：同文件夹多pdf3__20260608091749.json",
+          "original_file": "样本2（研发资质2）：同文件夹多pdf3.pdf",
+          "parse_status": "success"
+        }
+      ],
+      "expected_materials": ["政府荣誉或认定名单"]
+    },
+    {
+      "submission_id": "sample-planned-implementation-3",
+      "name": "样本5：单一PDF多证照局部样本",
+      "mode": "partial",
+      "conditions": ["project_stage_planned"],
+      "files": [
+        {
+          "path": "../../AI预审 样本2/MinerU_样本5（计划实施3）：单一pdf多文件__20260608091809.json",
+          "original_file": "样本5（计划实施3）：单一pdf多文件.pdf",
+          "parse_status": "success"
+        }
+      ],
+      "expected_materials": [
+        "营业执照",
+        "食品生产许可证",
+        "食品经营许可证",
+        "HACCP体系认证证书",
+        "质量管理体系认证证书",
+        "食品安全管理体系认证证书"
+      ]
+    }
+  ]
+}

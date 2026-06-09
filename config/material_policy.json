@@ -1,0 +1,119 @@
+{
+  "policy_notes": [
+    "只有required和满足触发条件的conditional_required材料可以参与缺失判断。",
+    "recommended材料未提交不得打回，仅在已提交时识别、抽取和展示。",
+    "auxiliary材料用于补充企业画像，不参与形式审查缺失判断。",
+    "irrelevant材料仅提示可能无关，不参与审查结论。",
+    "《副本参赛需准备文件》包含部分内部加严和推荐要求，不全部等同于官方硬规则。"
+    ,"必要材料默认必须命中材料强标题或起始特征，通用关键词弱匹配只转人工复核。"
+  ],
+  "materials": {
+    "申报书": {
+      "requirement": "required",
+      "missing_action": "fail"
+    },
+    "营业执照": {
+      "requirement": "required",
+      "missing_action": "fail"
+    },
+    "信用记录证明": {
+      "requirement": "required",
+      "missing_action": "fail",
+      "note": "官方表述为信用中国、政府采购网等征信材料，不默认要求两个平台同时提供。"
+    },
+    "法定代表人无重大违法记录声明函": {
+      "requirement": "required",
+      "missing_action": "fail"
+    },
+    "申报材料真实性承诺书": {
+      "requirement": "required",
+      "missing_action": "fail"
+    },
+    "主营业务收入或财务证明": {
+      "requirement": "required",
+      "missing_action": "fail"
+    },
+    "研发投入证明": {
+      "requirement": "required",
+      "missing_action": "fail"
+    },
+    "联合申报协议": {
+      "requirement": "conditional_required",
+      "condition": "joint_declaration",
+      "missing_action": "fail"
+    },
+    "分支机构专项授权文件": {
+      "requirement": "conditional_required",
+      "condition": "branch_office",
+      "missing_action": "fail"
+    },
+    "正在建设阶段证明": {
+      "requirement": "conditional_required",
+      "condition": "project_stage_building",
+      "missing_action": "fail"
+    },
+    "计划实施阶段证明": {
+      "requirement": "conditional_required",
+      "condition": "project_stage_planned",
+      "missing_action": "fail"
+    },
+    "需求实施保障性承诺函": {
+      "requirement": "recommended",
+      "missing_action": "ignore"
+    },
+    "研发资质证明": {
+      "requirement": "recommended",
+      "missing_action": "ignore",
+      "note": "专利、软件著作权、算法备案等用于证明研发能力，未提交不判材料缺失。"
+    },
+    "荣誉资质证明": {
+      "requirement": "recommended",
+      "missing_action": "ignore",
+      "note": "荣誉、试点示范和比赛奖励用于证明综合实力，未提交不判材料缺失。"
+    },
+    "政府荣誉或认定名单": {
+      "requirement": "recommended",
+      "missing_action": "ignore",
+      "note": "必须核验申报单位是否实际出现在名单中。"
+    },
+    "食品生产许可证": {
+      "requirement": "auxiliary",
+      "missing_action": "ignore"
+    },
+    "食品经营许可证": {
+      "requirement": "auxiliary",
+      "missing_action": "ignore"
+    },
+    "HACCP体系认证证书": {
+      "requirement": "auxiliary",
+      "missing_action": "ignore"
+    },
+    "质量管理体系认证证书": {
+      "requirement": "auxiliary",
+      "missing_action": "ignore"
+    },
+    "食品安全管理体系认证证书": {
+      "requirement": "auxiliary",
+      "missing_action": "ignore"
+    },
+    "行业能力或项目经验说明": {
+      "requirement": "auxiliary",
+      "missing_action": "ignore"
+    },
+    "纳税或税务材料": {
+      "requirement": "auxiliary",
+      "missing_action": "ignore",
+      "note": "税务材料不能仅因包含统一社会信用代码被视为营业执照；是否足以证明主营业务收入需人工确认。"
+    },
+    "无效或测试材料": {
+      "requirement": "irrelevant",
+      "missing_action": "ignore",
+      "present_action": "manual_review"
+    },
+    "待分类材料": {
+      "requirement": "unknown",
+      "missing_action": "ignore",
+      "present_action": "manual_review"
+    }
+  }
+}

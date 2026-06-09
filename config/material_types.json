@@ -1,0 +1,197 @@
+{
+  "types": [
+    {
+      "id": "invalid_or_test",
+      "name": "无效或测试材料",
+      "category": "风险材料",
+      "priority": 100,
+      "start_patterns": ["^测试声明$", "合成测试数据", "TEST ONLY", "不具备任何法律.*效力"],
+      "keywords": ["不得用于", "不作为资信证明", "INVALID", "测试样例"]
+    },
+    {
+      "id": "business_license",
+      "name": "营业执照",
+      "category": "主体资格证明",
+      "priority": 95,
+      "start_patterns": ["(?:营|企)?业执照", "企业法人营业执照"],
+      "keywords": ["统一社会信用代码", "注册资本", "法定代表人", "登记机关"]
+    },
+    {
+      "id": "commitment_letter",
+      "name": "申报材料真实性承诺书",
+      "category": "合规证明",
+      "priority": 95,
+      "start_patterns": ["^承诺书$", "真实性承诺书"],
+      "keywords": ["资料真实性负责", "国家保密规定", "不存在无场景包装行为", "单位盖章"]
+    },
+    {
+      "id": "legal_rep_declaration",
+      "name": "法定代表人无重大违法记录声明函",
+      "category": "合规证明",
+      "priority": 95,
+      "start_patterns": ["无重大违法记录声明函", "法定代表人.*无重大违法记录"],
+      "keywords": ["无重大违法记录", "声明函", "法定代表人"]
+    },
+    {
+      "id": "credit_report",
+      "name": "信用记录证明",
+      "category": "合规证明",
+      "priority": 95,
+      "start_patterns": ["信用中国", "政府采购网", "信用报告"],
+      "keywords": ["近三年无不良信用记录", "行政处罚", "失信被执行人"]
+    },
+    {
+      "id": "tax_material",
+      "name": "纳税或税务材料",
+      "category": "财税辅助证明",
+      "priority": 94,
+      "start_patterns": ["税款所属期间", "纳税申报表", "完税证明", "涉税信息查询结果"],
+      "keywords": ["纳税人识别号", "纳税人名称", "国家税务总局监制", "应纳税额"]
+    },
+    {
+      "id": "food_production_license",
+      "name": "食品生产许可证",
+      "category": "行业资质证明",
+      "priority": 92,
+      "start_patterns": ["食品生产许可证", "食品生产许可品种明细表"],
+      "keywords": ["生产者名称", "食品类别", "许可证编号", "生产地址"]
+    },
+    {
+      "id": "food_operation_license",
+      "name": "食品经营许可证",
+      "category": "行业资质证明",
+      "priority": 92,
+      "start_patterns": ["食品经营许可证"],
+      "keywords": ["经营者名称", "经营项目", "主体业态", "许可证编号"]
+    },
+    {
+      "id": "haccp_certificate",
+      "name": "HACCP体系认证证书",
+      "category": "行业资质证明",
+      "priority": 92,
+      "start_patterns": ["HACCP.*认证证书"],
+      "keywords": ["危害分析与关键控制点", "HACCP", "有效期至"]
+    },
+    {
+      "id": "quality_management_certificate",
+      "name": "质量管理体系认证证书",
+      "category": "行业资质证明",
+      "priority": 92,
+      "start_patterns": ["质量管理体系认证证书"],
+      "keywords": ["ISO 9001", "GB/T 19001", "有效期至"]
+    },
+    {
+      "id": "food_safety_certificate",
+      "name": "食品安全管理体系认证证书",
+      "category": "行业资质证明",
+      "priority": 92,
+      "start_patterns": ["食品安全管理体系认证证书"],
+      "keywords": ["ISO 22000", "食品安全管理体系", "有效期至"]
+    },
+    {
+      "id": "government_honor_list",
+      "name": "政府荣誉或认定名单",
+      "category": "荣誉资质证明",
+      "priority": 90,
+      "start_patterns": ["关于公布.*名单", "重点龙头企业名单", "认定.*名单"],
+      "keywords": ["名单", "认定", "有效期", "附件"]
+    },
+    {
+      "id": "rd_qualification",
+      "name": "研发资质证明",
+      "category": "研发能力证明",
+      "priority": 88,
+      "start_patterns": ["专利[/／、和及软著]*证书", "研发能力证明", "^发明专利", "^软件著作权"],
+      "keywords": ["发明专利", "实用新型专利", "软件著作权", "算法备案", "专利号", "登记号"]
+    },
+    {
+      "id": "honor_certificate",
+      "name": "荣誉资质证明",
+      "category": "荣誉资质证明",
+      "priority": 86,
+      "start_patterns": ["荣誉资质证书", "高新技术企业证书", "重点实验室"],
+      "keywords": ["高新技术企业", "企业技术中心", "重点实验室", "试点示范", "科技进步", "专精特新"]
+    },
+    {
+      "id": "financial_statement",
+      "name": "主营业务收入或财务证明",
+      "category": "财务证明",
+      "priority": 84,
+      "start_patterns": [
+        "财务报表",
+        "审计报告",
+        "主营业务收入证明",
+        "(?:合并)?资产负债表",
+        "(?:合并)?利润表",
+        "(?:合并)?现金流量表",
+        "(?:合并)?所有者权益变动表",
+        "资产减值准备情况表"
+      ],
+      "keywords": ["营业收入", "净利润", "资产总计", "所有者权益", "编制单位", "金额单位"]
+    },
+    {
+      "id": "rd_investment",
+      "name": "研发投入证明",
+      "category": "财务证明",
+      "priority": 84,
+      "start_patterns": ["研发投入证明", "研发费用归集证明"],
+      "keywords": ["研发投入", "研发费用", "研发经费"]
+    },
+    {
+      "id": "joint_agreement",
+      "name": "联合申报协议",
+      "category": "特殊情形证明",
+      "priority": 84,
+      "start_patterns": ["联合申报协议"],
+      "keywords": ["牵头单位", "知识产权归属", "各方权利义务"]
+    },
+    {
+      "id": "owner_support_commitment",
+      "name": "需求实施保障性承诺函",
+      "category": "辅助说明",
+      "priority": 84,
+      "start_patterns": ["需求实施保障性承诺函", "场景业主方.*承诺函"],
+      "keywords": ["验证环境", "数据资源", "业主方"]
+    },
+    {
+      "id": "branch_authorization",
+      "name": "分支机构专项授权文件",
+      "category": "特殊情形证明",
+      "priority": 84,
+      "start_patterns": ["专项授权申报证明", "授权申报证明", "^授权书$"],
+      "keywords": ["授权", "分公司", "总公司"]
+    },
+    {
+      "id": "application_form",
+      "name": "申报书",
+      "category": "申报主体材料",
+      "priority": 80,
+      "start_patterns": ["场景创新应用大赛申报书", "基本信息表", "项目任务书"],
+      "keywords": ["参赛赛道", "项目当前进展", "项目背景与预期目标"]
+    },
+    {
+      "id": "project_progress_building",
+      "name": "正在建设阶段证明",
+      "category": "项目阶段证明",
+      "priority": 80,
+      "start_patterns": ["当前性能指标及应用进展证明", "项目投资及实施进度证明"],
+      "keywords": ["第三方测试", "内部试运行", "系统原型", "采购合同", "已完成投资"]
+    },
+    {
+      "id": "project_progress_planned",
+      "name": "计划实施阶段证明",
+      "category": "项目阶段证明",
+      "priority": 80,
+      "start_patterns": ["前期准备及技术可行性证明", "立项与启动条件证明"],
+      "keywords": ["可行性方案", "业务数据集清单", "算力资源", "立项批复", "预算审批", "三重一大"]
+    },
+    {
+      "id": "industry_experience",
+      "name": "行业能力或项目经验说明",
+      "category": "辅助说明",
+      "priority": 60,
+      "start_patterns": ["行业地位", "项目经验", "企业画像摘要"],
+      "keywords": ["市场份额", "行业排名", "项目经验", "合作伙伴"]
+    }
+  ]
+}

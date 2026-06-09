@@ -1,0 +1,23 @@
+.DS_Store
+__pycache__/
+*.py[cod]
+
+# Generated reports may contain enterprise names, credit codes, financial data,
+# contact details, and local absolute paths.
+output/
+output_*/
+
+# Never commit original or intermediate submission materials.
+private_samples/
+samples_private/
+*.pdf
+*.doc
+*.docx
+*.wps
+*.xls
+*.xlsx
+
+# Local credentials and runtime files.
+.env
+.env.*
+*.log

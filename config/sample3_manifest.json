@@ -1,0 +1,42 @@
+{
+  "submissions": [
+    {
+      "submission_id": "sample3-rd-multi-type",
+      "name": "样本3：研发资质多类型局部材料包",
+      "mode": "partial",
+      "conditions": [],
+      "files": [
+        {
+          "path": "../../AI预审 样本3/MinerU_样本3（研发资质2）-多类型1__20260609014655.json",
+          "original_file": "样本3（研发资质2）-多类型1.pdf",
+          "parse_status": "success"
+        },
+        {
+          "path": "../../AI预审 样本3/MinerU_样本3（研发资质2）-多类型2__20260609014047.json",
+          "original_file": "样本3（研发资质2）-多类型2.pdf",
+          "parse_status": "success"
+        },
+        {
+          "path": "../../AI预审 样本3/MinerU_样本3（研发资质2）-多类型3__20260609013603.json",
+          "original_file": "样本3（研发资质2）-多类型3.pdf",
+          "parse_status": "success"
+        },
+        {
+          "path": "../../AI预审 样本3/MinerU_样本3（研发资质2）-多类型4__20260609014033.json",
+          "original_file": "样本3（研发资质2）-多类型4.pdf",
+          "parse_status": "success"
+        },
+        {
+          "path": "../../AI预审 样本3/MinerU_样本3（研发资质2）-多类型5__20260609013844.json",
+          "original_file": "样本3（研发资质2）-多类型5.pdf",
+          "parse_status": "success"
+        },
+        {
+          "path": "../../AI预审 样本3/MinerU_样本3（研发资质2）-多类型6__20260609013628.json",
+          "original_file": "样本3（研发资质2）-多类型6.pdf",
+          "parse_status": "success"
+        }
+      ]
+    }
+  ]
+}

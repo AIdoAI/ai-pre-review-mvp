@@ -1,0 +1,26 @@
+{
+  "material_rule_ids": {
+    "申报书": "HR-3.1-APPLICATION",
+    "营业执照": "HR-2.1-LICENSE",
+    "信用记录证明": "HR-2.1-CREDIT",
+    "法定代表人无重大违法记录声明函": "HR-2.1-DECLARATION",
+    "申报材料真实性承诺书": "HR-2.1-COMMITMENT",
+    "主营业务收入或财务证明": "HR-2.1-FINANCIAL",
+    "研发投入证明": "HR-2.1-RD-INVESTMENT",
+    "联合申报协议": "HR-2.3-JOINT",
+    "分支机构专项授权文件": "HR-2.4-BRANCH",
+    "正在建设阶段证明": "HR-2.5-BUILDING",
+    "计划实施阶段证明": "HR-2.5-PLANNED"
+  },
+  "commitment_required_phrases": [
+    "资料真实性负责",
+    "拥有知识产权",
+    "合法授权",
+    "国家保密规定",
+    "国家秘密",
+    "个人隐私",
+    "务实落地",
+    "不存在无场景包装行为"
+  ],
+  "low_confidence_threshold": 0.75
+}

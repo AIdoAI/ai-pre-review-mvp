@@ -1,0 +1,122 @@
+{
+  "notes": [
+    "supported表示当前代码已实现该规则的确定性部分，不代表覆盖全部业务语义。",
+    "partial表示只能提供材料存在性、字段抽取或人工复核线索。",
+    "not_supported表示当前样本、MinerU输出或外部数据不足以执行。",
+    "auto_reject_enabled仅在完整材料包且所有输入解析成功时生效。"
+  ],
+  "rules": {
+    "HR-1.1": {
+      "status": "partial",
+      "auto_reject_enabled": false,
+      "implemented": ["营业执照存在性", "国资关键词辅助信号"],
+      "gap": "国资身份、股权穿透和最终主体资格需外部数据或人工裁定"
+    },
+    "HR-1.2": {
+      "status": "partial",
+      "auto_reject_enabled": false,
+      "implemented": ["联合申报协议条件性存在检查"],
+      "gap": "单位数量和牵头单位性质需完整申报书样本"
+    },
+    "HR-1.3": {
+      "status": "partial",
+      "auto_reject_enabled": false,
+      "implemented": ["征信材料和声明函存在性"],
+      "gap": "近三年记录内容和声明函公章需人工确认"
+    },
+    "HR-2.1": {
+      "status": "supported",
+      "auto_reject_enabled": true,
+      "implemented": ["七类必要材料存在性"],
+      "guard": "仅mode=complete且所有文件parse_status=success"
+    },
+    "HR-2.2": {
+      "status": "partial",
+      "auto_reject_enabled": false,
+      "implemented": ["财务证明和研发投入证明分别分类"],
+      "gap": "同一材料能否分别证明两项需人工确认"
+    },
+    "HR-2.3": {
+      "status": "supported",
+      "auto_reject_enabled": true,
+      "implemented": ["联合申报场景下协议存在性"],
+      "guard": "需由清单明确标记joint_declaration条件"
+    },
+    "HR-2.4": {
+      "status": "partial",
+      "auto_reject_enabled": false,
+      "implemented": ["分支机构授权文件条件性存在检查"],
+      "gap": "总公司执照、授权范围、期限和公章尚未完整实现"
+    },
+    "HR-2.5": {
+      "status": "partial",
+      "auto_reject_enabled": false,
+      "implemented": ["阶段证明材料条件性存在检查"],
+      "gap": "当前未分别验证每阶段的两类证明及内容匹配"
+    },
+    "HR-3.1": {
+      "status": "partial",
+      "auto_reject_enabled": false,
+      "implemented": ["申报书及附件材料分类基础"],
+      "gap": "需要完整申报材料样本验证三类内容"
+    },
+    "HR-3.2": {
+      "status": "not_supported",
+      "auto_reject_enabled": false,
+      "gap": "需要申报书表格字段定位、勾选框识别和更多样本"
+    },
+    "HR-3.3": {
+      "status": "not_supported",
+      "auto_reject_enabled": false,
+      "gap": "需要联合申报完整样本"
+    },
+    "HR-3.4": {
+      "status": "not_supported",
+      "auto_reject_enabled": false,
+      "gap": "需要项目阶段勾选框识别"
+    },
+    "HR-3.5": {
+      "status": "not_supported",
+      "auto_reject_enabled": false,
+      "gap": "需要合作推进表单字段和条件依赖解析"
+    },
+    "HR-3.6": {
+      "status": "not_supported",
+      "auto_reject_enabled": false,
+      "gap": "需要赛道勾选框识别"
+    },
+    "HR-3.7": {
+      "status": "partial",
+      "auto_reject_enabled": false,
+      "implemented": ["标题文本可用于章节存在性识别"],
+      "gap": "需要完整申报书样本验证标题变体和OCR漏识别"
+    },
+    "HR-4.1": {
+      "status": "not_supported",
+      "auto_reject_enabled": false,
+      "gap": "MinerU文字结果不能可靠确认装订、公章、签字和骑缝章"
+    },
+    "HR-5.1": {
+      "status": "not_supported",
+      "auto_reject_enabled": false,
+      "gap": "阶段勾选、材料语义冲突和规模化落地均需更多样本或人工复核"
+    },
+    "HR-6.1": {
+      "status": "partial",
+      "auto_reject_enabled": false,
+      "implemented": ["联系人和电话文本抽取"],
+      "gap": "未提取到不能证明原字段空白"
+    },
+    "HR-6.2": {
+      "status": "not_supported",
+      "auto_reject_enabled": false,
+      "gap": "签字和公章位置是否空白仍需要原图视觉模型或人工"
+    },
+    "HR-6.3": {
+      "status": "partial",
+      "auto_reject_enabled": false,
+      "implemented": ["承诺书年份文本抽取"],
+      "gap": "异常值需核对原页并排除OCR错误"
+    }
+  }
+}
