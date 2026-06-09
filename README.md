@@ -18,6 +18,17 @@ MinerU JSON
 
 ## 快速运行
 
+推荐的人工测试方式：将一个样本的全部文件放入同一个文件夹，然后运行交互式入口：
+
+```bash
+python3 local_review/run_folder_review.py \
+  --input "/path/to/测试样本2"
+```
+
+运行时可直接选择是否联合申报、每家单位是否独立法人等选项，无需修改`sample_manifest.json`。系统会递归查找该文件夹中的MinerU JSON，使用文件夹名作为样本名，并将本次选择保存为`generated_manifest.json`。默认输出至`local_review/output_folder_review`，也可通过`--output`指定其他目录。
+
+原始PDF可以和MinerU JSON放在同一文件夹，但当前审查入口只读取MinerU JSON；未解析文件会记录为忽略项。
+
 在工作区根目录执行：
 
 ```bash

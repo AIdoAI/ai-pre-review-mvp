@@ -28,6 +28,7 @@
 | 报告生成 | `review_mvp/report.py` | 输出Markdown人工审查报告 |
 | 资质画像 | `review_mvp/qualification_profile.py` | 仅根据文件名分类、去重、统计资质成果候选 |
 | 批量入口 | `run_review.py` | 批量运行样本清单 |
+| 交互测试入口 | `run_folder_review.py` | 扫描单个样本文件夹，运行时收集表单选项并自动生成清单 |
 | 资质画像入口 | `run_qualification_profile.py` | 生成专家用资质画像JSON与Markdown |
 | 能力声明 | `config/rule_capabilities.json` | 声明每条业务规则当前是否可实现及能否自动拒绝 |
 

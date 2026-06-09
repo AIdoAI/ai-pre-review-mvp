@@ -64,6 +64,21 @@ def render_report(
             )
     else:
         lines.append("|  | 当前未生成动态上传要求 |  |  |  |")
+    folder_scan = submission.get("folder_scan")
+    if folder_scan:
+        lines.extend(
+            [
+                "",
+                "## 样本文件夹扫描",
+                "",
+                f'- 来源文件夹：`{folder_scan.get("source_folder", "")}`',
+                f'- MinerU JSON数量：{folder_scan.get("mineru_json_count", 0)}',
+                f'- 其他未解析文件数量：{len(folder_scan.get("ignored_files", []))}',
+            ]
+        )
+        if folder_scan.get("ignored_files"):
+            lines.extend(["", "未解析文件："])
+            lines.extend(f'- `{item}`' for item in folder_scan["ignored_files"])
     lines.extend(
         [
             "",
