@@ -10,8 +10,10 @@ sys.path.insert(0, str(ROOT / "local_review"))
 
 from review_mvp.subject_structure import (
     apply_material_assignments,
+    build_upload_requirements,
     entity_material_findings,
     prepare_subject_structure,
+    subject_structure_from_form_answers,
 )
 
 
@@ -36,6 +38,108 @@ def material(document_type: str, original_file: str, confirmed: bool = True) -> 
 
 
 class SubjectStructureTests(unittest.TestCase):
+    def test_form_answers_independent_legal_person(self) -> None:
+        structure = prepare_subject_structure(
+            {
+                "form_answers": {
+                    "is_joint_declaration": False,
+                    "applicants": [
+                        {
+                            "entity_id": "E01",
+                            "entity_name": "独立申报单位",
+                            "entity_type": "state_owned",
+                            "is_independent_legal_person": True,
+                        }
+                    ],
+                }
+            }
+        )
+        self.assertEqual(structure["input_source"], "form_answers")
+        self.assertEqual(structure["declaration_type"], "independent")
+        self.assertEqual(structure["entities"][0]["declaration_role"], "applicant")
+        self.assertEqual(structure["upload_requirements"], [])
+
+    def test_form_answers_non_independent_generates_parent_upload_zones(self) -> None:
+        structure = prepare_subject_structure(
+            {
+                "form_answers": {
+                    "is_joint_declaration": False,
+                    "applicants": [
+                        {
+                            "entity_id": "E01",
+                            "entity_name": "非独立法人申报单位",
+                            "entity_type": "state_owned",
+                            "is_independent_legal_person": False,
+                            "parent_entity": {
+                                "entity_id": "E02",
+                                "entity_name": "上级单位",
+                                "entity_type": "state_owned",
+                            },
+                        }
+                    ],
+                }
+            }
+        )
+        self.assertEqual(structure["applicant_entity_ids"], ["E01"])
+        self.assertIn("branch_office", structure["derived_conditions"])
+        self.assertEqual(
+            {item["document_type"] for item in structure["upload_requirements"]},
+            {"营业执照", "分支机构专项授权文件"},
+        )
+        parent = next(item for item in structure["entities"] if item["entity_id"] == "E02")
+        self.assertEqual(parent["declaration_role"], "authorizing_parent")
+        self.assertTrue(parent["is_independent_legal_person"])
+
+    def test_form_answers_joint_generates_joint_upload_zone(self) -> None:
+        structure = prepare_subject_structure(
+            {
+                "form_answers": {
+                    "is_joint_declaration": True,
+                    "applicants": [
+                        {
+                            "entity_id": "E01",
+                            "entity_type": "state_owned",
+                            "is_lead": True,
+                            "is_independent_legal_person": True,
+                        },
+                        {
+                            "entity_id": "E02",
+                            "entity_type": "private",
+                            "is_lead": False,
+                            "is_independent_legal_person": True,
+                        },
+                    ],
+                }
+            }
+        )
+        self.assertEqual(structure["declaration_type"], "joint")
+        self.assertEqual(statuses(structure, "HR-1.2-COUNT"), ["pass"])
+        self.assertEqual(
+            [item["document_type"] for item in structure["upload_requirements"]],
+            ["联合申报协议"],
+        )
+
+    def test_form_answers_are_authoritative_over_subject_structure(self) -> None:
+        structure = prepare_subject_structure(
+            {
+                "form_answers": {
+                    "is_joint_declaration": False,
+                    "applicants": [
+                        {
+                            "entity_id": "E01",
+                            "is_independent_legal_person": True,
+                        }
+                    ],
+                },
+                "subject_structure": {
+                    "declaration_type": "joint",
+                    "entities": [],
+                },
+            }
+        )
+        self.assertEqual(structure["declaration_type"], "independent")
+        self.assertEqual(statuses(structure, "INFO-FORM-SOURCE"), ["pass"])
+
     def test_independent_application_has_one_applicant(self) -> None:
         structure = prepare_subject_structure(
             {

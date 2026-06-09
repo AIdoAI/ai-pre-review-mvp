@@ -14,6 +14,25 @@
 -> 分主体输出缺件与人工复核事项
 ```
 
+## 表单是权威输入
+
+平台表单应直接提供以下手动选项，规则引擎不通过OCR猜测：
+
+- `is_joint_declaration`：是否联合申报。
+- 每家申报单位的`is_independent_legal_person`：是否独立法人。
+- 联合申报时每家单位的`is_lead`：是否牵头单位。
+- 非独立法人单位的`parent_entity`：具有独立法人资格的上级单位。
+
+测试时可直接填写`form_answers`。正式对接时，平台将表单JSON原样传入，系统自动转换为内部`subject_structure`。
+
+完整表单示例见`config/form_answers_example.json`。
+
+## 动态上传区域
+
+- 选择联合申报：显示联合申报协议上传区域。
+- 任一申报单位选择“非独立法人”：为该单位显示上级营业执照和专项授权两个上传区域。
+- 上传区域应将`owner_entity_id`和`supports_entity_id`随文件一并传入，以自动建立材料归属。
+
 ## 主体角色
 
 - `applicant`：独立申报单位。

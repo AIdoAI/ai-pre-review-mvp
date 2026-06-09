@@ -1,0 +1,50 @@
+{
+  "submission_id": "form-joint-example",
+  "name": "表单选项生成主体结构示例",
+  "mode": "complete",
+  "form_answers": {
+    "is_joint_declaration": true,
+    "project_stage": "building",
+    "applicants": [
+      {
+        "entity_id": "E01",
+        "entity_name": "牵头国企",
+        "entity_type": "state_owned",
+        "is_lead": true,
+        "is_independent_legal_person": true
+      },
+      {
+        "entity_id": "E02",
+        "entity_name": "联合成员分支机构",
+        "entity_type": "state_owned",
+        "is_lead": false,
+        "is_independent_legal_person": false,
+        "parent_entity": {
+          "entity_id": "E03",
+          "entity_name": "联合成员上级单位",
+          "entity_type": "state_owned"
+        }
+      }
+    ]
+  },
+  "files": [
+    {
+      "path": "../input/联合申报协议.json",
+      "original_file": "联合申报协议.pdf"
+    },
+    {
+      "path": "../input/上级单位营业执照.json",
+      "original_file": "上级单位营业执照.pdf",
+      "document_type": "营业执照",
+      "owner_entity_id": "E03",
+      "supports_entity_id": "E02"
+    },
+    {
+      "path": "../input/专项授权申报证明.json",
+      "original_file": "专项授权申报证明.pdf",
+      "document_type": "分支机构专项授权文件",
+      "owner_entity_id": "E03",
+      "supports_entity_id": "E02"
+    }
+  ]
+}

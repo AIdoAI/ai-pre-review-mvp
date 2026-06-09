@@ -246,6 +246,51 @@ class PipelineTests(unittest.TestCase):
             self.assertIn("牵头国企", report)
             self.assertTrue((output / "structured-joint-test" / "subject_structure.json").exists())
 
+    def test_pipeline_accepts_form_answers(self) -> None:
+        sample_manifest = json.loads(
+            (ROOT / "local_review" / "config" / "sample_manifest.json").read_text(encoding="utf-8")
+        )
+        source_item = sample_manifest["submissions"][0]["files"][0]
+        source_path = (ROOT / "local_review" / "config" / source_item["path"]).resolve()
+        manifest = {
+            "submissions": [
+                {
+                    "submission_id": "form-answer-test",
+                    "name": "表单选项测试",
+                    "mode": "partial",
+                    "form_answers": {
+                        "is_joint_declaration": False,
+                        "applicants": [
+                            {
+                                "entity_id": "E01",
+                                "entity_name": "表单申报单位",
+                                "entity_type": "state_owned",
+                                "is_independent_legal_person": True,
+                            }
+                        ],
+                    },
+                    "files": [
+                        {
+                            "path": str(source_path),
+                            "original_file": source_item["original_file"],
+                            "parse_status": "success",
+                            "owner_entity_id": "E01",
+                        }
+                    ],
+                }
+            ]
+        }
+        with tempfile.TemporaryDirectory() as temp_dir:
+            manifest_path = Path(temp_dir) / "manifest.json"
+            output = Path(temp_dir) / "output"
+            manifest_path.write_text(json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
+            result = run_manifest(manifest_path, output)[0]
+            self.assertEqual(result["subject_structure"]["input_source"], "form_answers")
+            self.assertEqual(result["rule_results"]["declaration_type"], "independent")
+            self.assertTrue(any(material.get("ownership") for material in result["materials"]))
+            report = (output / "form-answer-test" / "review_report.md").read_text(encoding="utf-8")
+            self.assertIn("表单触发的动态上传要求", report)
+
 
 if __name__ == "__main__":
     unittest.main()

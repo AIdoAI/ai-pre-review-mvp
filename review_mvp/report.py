@@ -25,6 +25,7 @@ def render_report(
         "",
         f'- 审查模式：`{submission.get("mode", "partial")}`',
         f'- 申报方式：`{submission.get("_subject_structure", {}).get("declaration_type", "unspecified")}`',
+        f'- 主体信息来源：`{submission.get("_subject_structure", {}).get("input_source", "none")}`',
         f'- 综合状态：**{rule_results["overall_status"]}**',
         f'- 输入文件数：{len(submission["files"])}',
         f'- 识别材料数：{len(materials)}',
@@ -44,6 +45,25 @@ def render_report(
             )
     else:
         lines.append("|  | 未提供结构化主体信息 |  |  |  |  |")
+    lines.extend(
+        [
+            "",
+            "## 表单触发的动态上传要求",
+            "",
+            "| 上传区域 | 材料类型 | 材料所属主体 | 支持的申报主体 | 触发原因 |",
+            "|---|---|---|---|---|",
+        ]
+    )
+    upload_requirements = submission.get("_subject_structure", {}).get("upload_requirements", [])
+    if upload_requirements:
+        for item in upload_requirements:
+            lines.append(
+                f'| {item.get("upload_key", "")} | {item.get("document_type", "")} | '
+                f'{item.get("owner_entity_id", "") or ""} | {item.get("supports_entity_id", "") or ""} | '
+                f'{item.get("reason", "")} |'
+            )
+    else:
+        lines.append("|  | 当前未生成动态上传要求 |  |  |  |")
     lines.extend(
         [
             "",

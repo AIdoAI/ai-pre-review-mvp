@@ -19,26 +19,146 @@ def finding(rule_id: str, status: str, description: str, reason: str) -> dict[st
     }
 
 
+def subject_structure_from_form_answers(form_answers: dict[str, Any]) -> dict[str, Any]:
+    """Convert platform form selections into the internal subject model."""
+    is_joint = form_answers.get("is_joint_declaration")
+    declaration_type = "joint" if is_joint is True else "independent" if is_joint is False else "unspecified"
+    entities: list[dict[str, Any]] = []
+    known_ids: set[str] = set()
+
+    for index, applicant in enumerate(form_answers.get("applicants", []), start=1):
+        entity_id = applicant.get("entity_id") or f"E{index:02d}"
+        role = "applicant"
+        if declaration_type == "joint":
+            role = "lead" if applicant.get("is_lead") else "member"
+        entity = {
+            "entity_id": entity_id,
+            "entity_name": applicant.get("entity_name"),
+            "declaration_role": role,
+            "entity_type": applicant.get("entity_type"),
+            "is_independent_legal_person": applicant.get("is_independent_legal_person"),
+        }
+        if applicant.get("required_materials") is not None:
+            entity["required_materials"] = applicant["required_materials"]
+
+        parent = applicant.get("parent_entity")
+        if applicant.get("is_independent_legal_person") is False and parent:
+            parent_id = parent.get("entity_id") or f"{entity_id}-PARENT"
+            entity["parent_entity_id"] = parent_id
+        entities.append(entity)
+        known_ids.add(entity_id)
+
+        if applicant.get("is_independent_legal_person") is False and parent:
+            if parent_id not in known_ids:
+                entities.append(
+                    {
+                        "entity_id": parent_id,
+                        "entity_name": parent.get("entity_name"),
+                        "declaration_role": "authorizing_parent",
+                        "entity_type": parent.get("entity_type"),
+                        "is_independent_legal_person": parent.get(
+                            "is_independent_legal_person",
+                            True,
+                        ),
+                    }
+                )
+                known_ids.add(parent_id)
+
+    return {
+        "declaration_type": declaration_type,
+        "project_stage": form_answers.get("project_stage"),
+        "entities": entities,
+    }
+
+
+def build_upload_requirements(structure: dict[str, Any]) -> list[dict[str, Any]]:
+    """Describe dynamic upload zones implied by confirmed form selections."""
+    requirements: list[dict[str, Any]] = []
+    if structure.get("declaration_type") == "joint":
+        requirements.append(
+            {
+                "upload_key": "joint_declaration_agreement",
+                "document_type": "联合申报协议",
+                "owner_entity_id": None,
+                "supports_entity_id": None,
+                "reason": "表单选择联合申报",
+            }
+        )
+    entities = structure.get("entities", [])
+    entity_index = {entity.get("entity_id"): entity for entity in entities}
+    for entity in entities:
+        if entity.get("declaration_role") not in APPLICANT_ROLES:
+            continue
+        required_materials = entity.get("required_materials", [])
+        if not isinstance(required_materials, list):
+            required_materials = []
+        for document_type in required_materials:
+            requirements.append(
+                {
+                    "upload_key": f'{entity["entity_id"]}_{document_type}',
+                    "document_type": document_type,
+                    "owner_entity_id": entity["entity_id"],
+                    "supports_entity_id": None,
+                    "reason": "该申报主体配置的必需材料",
+                }
+            )
+        if entity.get("is_independent_legal_person") is not False:
+            continue
+        parent = entity_index.get(entity.get("parent_entity_id"), {})
+        requirements.extend(
+            [
+                {
+                    "upload_key": f'{entity["entity_id"]}_parent_license',
+                    "document_type": "营业执照",
+                    "owner_entity_id": parent.get("entity_id"),
+                    "supports_entity_id": entity["entity_id"],
+                    "reason": "表单选择该申报单位不是独立法人",
+                },
+                {
+                    "upload_key": f'{entity["entity_id"]}_parent_authorization',
+                    "document_type": "分支机构专项授权文件",
+                    "owner_entity_id": parent.get("entity_id"),
+                    "supports_entity_id": entity["entity_id"],
+                    "reason": "表单选择该申报单位不是独立法人",
+                },
+            ]
+        )
+    return requirements
+
+
 def prepare_subject_structure(submission: dict[str, Any]) -> dict[str, Any]:
     """Validate an optional structured subject model and derive legacy conditions."""
     legacy_conditions = set(submission.get("conditions", []))
-    raw = submission.get("subject_structure")
+    form_answers = submission.get("form_answers")
+    raw = subject_structure_from_form_answers(form_answers) if form_answers else submission.get("subject_structure")
     if not raw:
         return {
             "provided": False,
+            "input_source": "none",
             "declaration_type": "unspecified",
             "project_stage": submission.get("project_stage"),
             "entities": [],
             "applicant_entity_ids": [],
+            "upload_requirements": [],
             "derived_conditions": sorted(legacy_conditions),
             "findings": [],
         }
 
     structure = deepcopy(raw)
+    input_source = "form_answers" if form_answers else "subject_structure"
     declaration_type = structure.get("declaration_type", "unspecified")
     project_stage = structure.get("project_stage") or submission.get("project_stage")
     entities = structure.get("entities", [])
     findings: list[dict[str, Any]] = []
+    if form_answers and submission.get("subject_structure"):
+        findings.append(
+            finding(
+                "INFO-FORM-SOURCE",
+                "pass",
+                "主体结构输入来源",
+                "同时收到form_answers和subject_structure，已按表单选项form_answers生成主体结构",
+            )
+        )
     entity_ids = [entity.get("entity_id") for entity in entities if entity.get("entity_id")]
     duplicate_ids = sorted({entity_id for entity_id in entity_ids if entity_ids.count(entity_id) > 1})
     entity_index = {entity.get("entity_id"): entity for entity in entities if entity.get("entity_id")}
@@ -245,10 +365,12 @@ def prepare_subject_structure(submission: dict[str, Any]) -> dict[str, Any]:
 
     return {
         "provided": True,
+        "input_source": input_source,
         "declaration_type": declaration_type,
         "project_stage": project_stage,
         "entities": entities,
         "applicant_entity_ids": [entity["entity_id"] for entity in applicants if entity.get("entity_id")],
+        "upload_requirements": build_upload_requirements(structure),
         "derived_conditions": sorted(legacy_conditions),
         "findings": findings,
     }

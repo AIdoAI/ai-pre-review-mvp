@@ -47,7 +47,11 @@ python3 local_review/run_qualification_profile.py \
 
 ## 申报主体结构
 
-新材料包建议通过`subject_structure`描述独立/联合申报、每家单位的申报角色、单位性质和是否独立法人。非独立法人单位必须通过`parent_entity_id`绑定具有独立法人资格的上级单位。
+正式对接优先使用平台表单输出`form_answers`：手动选择是否联合申报，并为每家申报单位选择是否独立法人。系统会自动生成内部`subject_structure`和动态上传要求，不通过OCR猜测这些选项。
+
+测试时也可以直接编辑`form_answers`。示例见`config/form_answers_example.json`。
+
+如不经过表单，也可直接通过`subject_structure`描述独立/联合申报、每家单位的申报角色、单位性质和是否独立法人。非独立法人单位必须通过`parent_entity_id`绑定具有独立法人资格的上级单位。
 
 材料可通过`material_assignments`关联所属主体；上级单位只提供授权时，使用`authorizing_parent`角色，不计入联合申报单位数量。完整示例见`config/subject_structure_example.json`。
 

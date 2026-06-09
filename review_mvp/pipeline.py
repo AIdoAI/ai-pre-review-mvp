@@ -70,6 +70,23 @@ def resolve_files(submission: dict[str, Any], manifest_path: Path) -> list[dict[
     return resolved
 
 
+def file_material_assignments(file_entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Convert upload-zone metadata on files into material ownership assignments."""
+    assignments = []
+    for item in file_entries:
+        if not item.get("owner_entity_id") and not item.get("supports_entity_id"):
+            continue
+        assignments.append(
+            {
+                "original_file": item.get("original_file") or item["path"].name,
+                "document_type": item.get("document_type"),
+                "owner_entity_id": item.get("owner_entity_id"),
+                "supports_entity_id": item.get("supports_entity_id"),
+            }
+        )
+    return assignments
+
+
 def run_submission(
     submission: dict[str, Any],
     manifest_path: Path,
@@ -135,9 +152,10 @@ def run_submission(
     rules = load_rules(rules_path)
     policy = load_policy(policy_path)
     annotate_material_presence(materials, policy)
+    assignments = submission.get("material_assignments", []) + file_material_assignments(file_entries)
     unmatched_assignments = apply_material_assignments(
         materials,
-        submission.get("material_assignments", []),
+        assignments,
     )
     review_submission["_unmatched_material_assignments"] = unmatched_assignments
     extracted = extract_all(materials)
