@@ -39,8 +39,8 @@ def render_report(
     if entities:
         for entity in entities:
             lines.append(
-                f'| {entity.get("entity_id", "")} | {entity.get("entity_name", "")} | '
-                f'{entity.get("declaration_role", "")} | {entity.get("entity_type", "")} | '
+            f'| {entity.get("entity_id", "")} | {entity.get("entity_name") or ""} | '
+            f'{entity.get("declaration_role", "")} | {entity.get("entity_type") or ""} | '
                 f'{entity.get("is_independent_legal_person", "")} | {entity.get("parent_entity_id", "") or ""} |'
             )
     else:

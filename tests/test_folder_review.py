@@ -42,10 +42,7 @@ class FolderReviewTests(unittest.TestCase):
                 "2",
                 "n",
                 "测试分公司",
-                "1",
                 "2",
-                "测试总公司",
-                "1",
                 "2",
             ]
         )
@@ -57,7 +54,9 @@ class FolderReviewTests(unittest.TestCase):
         self.assertFalse(form_answers["is_joint_declaration"])
         applicant = form_answers["applicants"][0]
         self.assertFalse(applicant["is_independent_legal_person"])
-        self.assertEqual(applicant["parent_entity"]["entity_name"], "测试总公司")
+        self.assertEqual(applicant["entity_name"], "测试分公司")
+        self.assertEqual(applicant["parent_entity"]["entity_id"], "E01-PARENT")
+        self.assertNotIn("entity_type", applicant)
         self.assertEqual(form_answers["project_stage"], "planned")
 
     def test_interactive_joint_two_applicants(self) -> None:
@@ -70,9 +69,7 @@ class FolderReviewTests(unittest.TestCase):
                 "3",
                 "牵头单位",
                 "1",
-                "1",
                 "联合成员",
-                "2",
                 "1",
                 "0",
             ]
@@ -92,7 +89,7 @@ class FolderReviewTests(unittest.TestCase):
         )
 
     def test_interactive_other_project_stage(self) -> None:
-        answers = iter(["1", "n", "测试单位", "1", "1", "3"])
+        answers = iter(["1", "n", "测试单位", "1", "3"])
         _, form_answers = collect_form_answers(
             input_fn=lambda _: next(answers),
             output_fn=lambda _: None,

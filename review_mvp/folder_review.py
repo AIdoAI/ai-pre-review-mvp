@@ -15,28 +15,11 @@ InputFunction = Callable[[str], str]
 OutputFunction = Callable[[str], None]
 
 
-ENTITY_TYPE_OPTIONS = {
-    "1": "state_owned",
-    "2": "private",
-    "3": "research_institute",
-    "4": "government_public",
-    "5": "other",
-}
-
 JOINT_MATERIAL_OPTIONS = {
     "1": "stamped_project_cooperation_agreement",
     "2": "stamped_joint_declaration_agreement",
     "3": "stamped_lead_declaration",
 }
-
-ENTITY_TYPE_MENU = [
-    ("1", "国企"),
-    ("2", "民企"),
-    ("3", "高校/科研院所"),
-    ("4", "机关/事业单位"),
-    ("5", "其他"),
-]
-
 
 def terminal_menu(prompt: str, options: list[tuple[str, str]], default_key: str) -> str:
     """Select one option with arrow keys and Enter in an interactive terminal."""
@@ -172,22 +155,6 @@ def ask_legal_person_status(
     )
 
 
-def ask_entity_type(
-    prompt: str,
-    default: str,
-    input_fn: InputFunction,
-    output_fn: OutputFunction,
-) -> str:
-    return ask_choice(
-        prompt,
-        ENTITY_TYPE_OPTIONS,
-        default,
-        input_fn,
-        output_fn,
-        ENTITY_TYPE_MENU,
-    )
-
-
 def collect_form_answers(
     input_fn: InputFunction = input,
     output_fn: OutputFunction = print,
@@ -240,34 +207,18 @@ def collect_form_answers(
     applicants = []
     for index in range(1, applicant_count + 1):
         output_fn(f"\n设置第{index}家申报单位：")
-        name = input_fn(f"单位名称 [申报单位{index}]：").strip() or f"申报单位{index}"
-        entity_type = ask_entity_type(
-            "请选择单位性质（上下方向键移动，回车确认）：",
-            "1",
-            input_fn,
-            output_fn,
-        )
+        name = input_fn(f"申报单位名称 [申报单位{index}]：").strip() or f"申报单位{index}"
         independent = ask_legal_person_status(input_fn, output_fn)
         applicant = {
             "entity_id": f"E{index:02d}",
             "entity_name": name,
-            "entity_type": entity_type,
             "is_independent_legal_person": independent,
         }
         if is_joint:
             applicant["is_lead"] = index == lead_index
         if not independent:
-            parent_name = input_fn("具有独立法人资格的上级单位名称 [上级单位]：").strip() or "上级单位"
-            parent_type = ask_entity_type(
-                "请选择上级单位性质（上下方向键移动，回车确认）：",
-                "1",
-                input_fn,
-                output_fn,
-            )
             applicant["parent_entity"] = {
                 "entity_id": f"E{index:02d}-PARENT",
-                "entity_name": parent_name,
-                "entity_type": parent_type,
             }
         applicants.append(applicant)
 
