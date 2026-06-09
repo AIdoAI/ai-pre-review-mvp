@@ -1,0 +1,49 @@
+{
+  "submission_id": "joint-branch-example",
+  "name": "联合申报与非独立法人示例",
+  "mode": "complete",
+  "subject_structure": {
+    "declaration_type": "joint",
+    "project_stage": "building",
+    "entities": [
+      {
+        "entity_id": "E01",
+        "entity_name": "牵头国企",
+        "declaration_role": "lead",
+        "entity_type": "state_owned",
+        "is_independent_legal_person": true,
+        "required_materials": ["营业执照"]
+      },
+      {
+        "entity_id": "E02",
+        "entity_name": "联合成员分支机构",
+        "declaration_role": "member",
+        "entity_type": "state_owned",
+        "is_independent_legal_person": false,
+        "parent_entity_id": "E03",
+        "required_materials": []
+      },
+      {
+        "entity_id": "E03",
+        "entity_name": "联合成员上级单位",
+        "declaration_role": "authorizing_parent",
+        "entity_type": "state_owned",
+        "is_independent_legal_person": true
+      }
+    ]
+  },
+  "material_assignments": [
+    {
+      "document_type": "营业执照",
+      "original_file": "上级单位营业执照.pdf",
+      "owner_entity_id": "E03"
+    },
+    {
+      "document_type": "分支机构专项授权文件",
+      "original_file": "专项授权申报证明文件.pdf",
+      "owner_entity_id": "E03",
+      "supports_entity_id": "E02"
+    }
+  ],
+  "files": []
+}

@@ -193,6 +193,59 @@ class PipelineTests(unittest.TestCase):
             )
             self.assertEqual(missing_credit["status"], "fail")
 
+    def test_pipeline_outputs_structured_joint_application(self) -> None:
+        sample_manifest = json.loads(
+            (ROOT / "local_review" / "config" / "sample_manifest.json").read_text(encoding="utf-8")
+        )
+        source_item = sample_manifest["submissions"][0]["files"][0]
+        source_path = (ROOT / "local_review" / "config" / source_item["path"]).resolve()
+        manifest = {
+            "submissions": [
+                {
+                    "submission_id": "structured-joint-test",
+                    "name": "结构化联合申报测试",
+                    "mode": "partial",
+                    "subject_structure": {
+                        "declaration_type": "joint",
+                        "entities": [
+                            {
+                                "entity_id": "E01",
+                                "entity_name": "牵头国企",
+                                "declaration_role": "lead",
+                                "entity_type": "state_owned",
+                                "is_independent_legal_person": True,
+                            },
+                            {
+                                "entity_id": "E02",
+                                "entity_name": "联合成员",
+                                "declaration_role": "member",
+                                "entity_type": "private",
+                                "is_independent_legal_person": True,
+                            },
+                        ],
+                    },
+                    "files": [
+                        {
+                            "path": str(source_path),
+                            "original_file": source_item["original_file"],
+                            "parse_status": "success",
+                        }
+                    ],
+                }
+            ]
+        }
+        with tempfile.TemporaryDirectory() as temp_dir:
+            manifest_path = Path(temp_dir) / "manifest.json"
+            output = Path(temp_dir) / "output"
+            manifest_path.write_text(json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
+            results = run_manifest(manifest_path, output)
+            item = results[0]
+            self.assertEqual(item["rule_results"]["declaration_type"], "joint")
+            self.assertIn("joint_declaration", item["subject_structure"]["derived_conditions"])
+            report = (output / "structured-joint-test" / "review_report.md").read_text(encoding="utf-8")
+            self.assertIn("牵头国企", report)
+            self.assertTrue((output / "structured-joint-test" / "subject_structure.json").exists())
+
 
 if __name__ == "__main__":
     unittest.main()

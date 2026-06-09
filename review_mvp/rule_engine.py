@@ -7,6 +7,8 @@ import re
 from pathlib import Path
 from typing import Any
 
+from .subject_structure import entity_material_findings
+
 
 def load_rules(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
@@ -63,6 +65,17 @@ def run_rules(
     m_index = material_index(materials)
     e_index = extracted_index(extracted)
     results: list[dict[str, Any]] = []
+    subject_structure = submission.get("_subject_structure", {})
+    results.extend(subject_structure.get("findings", []))
+    if submission.get("_unmatched_material_assignments"):
+        results.append(
+            result(
+                "MR-MATERIAL-ASSIGNMENT",
+                "manual_review",
+                "材料归属配置匹配",
+                f"存在{len(submission['_unmatched_material_assignments'])}条材料归属配置未匹配到识别材料",
+            )
+        )
 
     if not parse_complete:
         incomplete = [
@@ -90,6 +103,10 @@ def run_rules(
             and material_policy.get("condition") in conditions
         )
         if not applicable:
+            continue
+        if subject_structure.get("provided") and material_type == "分支机构专项授权文件":
+            # Structured entity checks validate one authorization per
+            # non-independent applicant and its parent relationship.
             continue
         rule_id = rules["material_rule_ids"].get(material_type, f"MAT-{material_type}")
         candidates = m_index.get(material_type, [])
@@ -135,6 +152,8 @@ def run_rules(
                     reason,
                 )
             )
+
+    results.extend(entity_material_findings(submission, materials))
 
     for material_type, found in m_index.items():
         material_policy = policy["materials"].get(
@@ -295,6 +314,7 @@ def run_rules(
     return {
         "submission_id": submission["submission_id"],
         "mode": mode,
+        "declaration_type": subject_structure.get("declaration_type", "unspecified"),
         "overall_status": overall,
         "results": results,
         "counts": {

@@ -24,15 +24,35 @@ def render_report(
         f'# {submission["name"]} - 本地AI预审报告',
         "",
         f'- 审查模式：`{submission.get("mode", "partial")}`',
+        f'- 申报方式：`{submission.get("_subject_structure", {}).get("declaration_type", "unspecified")}`',
         f'- 综合状态：**{rule_results["overall_status"]}**',
         f'- 输入文件数：{len(submission["files"])}',
         f'- 识别材料数：{len(materials)}',
         "",
-        "## 解析状态",
+        "## 申报主体结构",
         "",
-        "| 原始文件 | MinerU JSON | 状态 | 总页数 | 已解析页 | 空白页 |",
-        "|---|---|---|---:|---|---|",
+        "| 主体编号 | 主体名称 | 申报角色 | 单位性质 | 是否独立法人 | 上级单位编号 |",
+        "|---|---|---|---|---|---|",
     ]
+    entities = submission.get("_subject_structure", {}).get("entities", [])
+    if entities:
+        for entity in entities:
+            lines.append(
+                f'| {entity.get("entity_id", "")} | {entity.get("entity_name", "")} | '
+                f'{entity.get("declaration_role", "")} | {entity.get("entity_type", "")} | '
+                f'{entity.get("is_independent_legal_person", "")} | {entity.get("parent_entity_id", "") or ""} |'
+            )
+    else:
+        lines.append("|  | 未提供结构化主体信息 |  |  |  |  |")
+    lines.extend(
+        [
+            "",
+            "## 解析状态",
+            "",
+            "| 原始文件 | MinerU JSON | 状态 | 总页数 | 已解析页 | 空白页 |",
+            "|---|---|---|---:|---|---|",
+        ]
+    )
     for item in submission.get("_parse_details", []):
         lines.append(
             f'| {item.get("original_file", "")} | {item["path"]} | {item["parse_status"]} | '
@@ -44,15 +64,20 @@ def render_report(
         "",
         "## 材料目录",
         "",
-        "| 材料类型 | 必要性 | 存在性判定 | 分类置信度 | 证据页码 | 摘要 |",
-        "|---|---|---|---:|---|---|",
+        "| 材料类型 | 材料归属 | 必要性 | 存在性判定 | 分类置信度 | 证据页码 | 摘要 |",
+        "|---|---|---|---|---:|---|---|",
         ]
     )
     for item in materials:
         preview = item["text_preview"].replace("|", " ")[:120]
         presence = item.get("presence_assessment", {})
+        ownership = item.get("ownership") or {}
+        ownership_text = ownership.get("owner_entity_id", "")
+        if ownership.get("supports_entity_id"):
+            ownership_text += f'→支持{ownership["supports_entity_id"]}'
         lines.append(
             f'| {item["document_type"]} | '
+            f'{ownership_text} | '
             f'{item.get("requirement", "unknown")} | '
             f'{presence.get("level", "")}：{presence.get("reason", "")} | '
             f'{item["confidence"]:.2f} | '

@@ -24,6 +24,7 @@
 | 材料分类 | `review_mvp/classifier.py` | 识别材料类型并合并跨页内容 |
 | 字段抽取 | `review_mvp/extractor.py` | 抽取企业名称、信用代码、联系人等 |
 | 规则引擎 | `review_mvp/rule_engine.py` | 执行存在性和确定性规则 |
+| 主体结构 | `review_mvp/subject_structure.py` | 校验独立/联合申报、多主体、独立法人、上级单位和材料归属 |
 | 报告生成 | `review_mvp/report.py` | 输出Markdown人工审查报告 |
 | 资质画像 | `review_mvp/qualification_profile.py` | 仅根据文件名分类、去重、统计资质成果候选 |
 | 批量入口 | `run_review.py` | 批量运行样本清单 |
@@ -33,6 +34,12 @@
 ## 资质画像顺序
 
 资质画像与必要材料审查分开执行。系统可以并行生成画像，但只有通过形式审查后才向专家展示。专利、软著、论文、奖项等候选项不参与缺件打回；文件名初步分类也不能证明权属、有效性或含金量。
+
+## 主体结构与动态材料
+
+`subject_structure`将申报方式和主体关系列为结构化输入。联合申报单位只统计`lead/member`角色；仅提供授权的上级单位使用`authorizing_parent`，不计入联合体数量。非独立法人申报单位必须绑定上级独立法人，并分别关联上级营业执照和专项授权文件。
+
+`material_assignments`用于声明材料归属。系统识别到同类材料但无法确认属于哪家单位时，只转人工复核，不直接认为对应主体已提交。
 
 ## 长文件处理
 

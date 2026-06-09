@@ -45,6 +45,18 @@ python3 local_review/run_qualification_profile.py \
 
 若总目录按企业分文件夹存放，增加`--group-by-first-level`即可分别统计；总目录中的散落文件会进入`未归属文件`分组。
 
+## 申报主体结构
+
+新材料包建议通过`subject_structure`描述独立/联合申报、每家单位的申报角色、单位性质和是否独立法人。非独立法人单位必须通过`parent_entity_id`绑定具有独立法人资格的上级单位。
+
+材料可通过`material_assignments`关联所属主体；上级单位只提供授权时，使用`authorizing_parent`角色，不计入联合申报单位数量。完整示例见`config/subject_structure_example.json`。
+
+如组委会已明确某类联合成员需要提交特定主体材料，可在该主体下配置`required_materials`。系统将按`owner_entity_id`逐家校验；未配置的成员材料要求不会被系统自行推断为自动拒绝项。
+
+旧版清单中的`conditions`仍可继续使用，但只能触发粗粒度条件材料检查，不能判断每份材料属于哪家单位。
+
+详细结构和判断顺序见`SUBJECT_STRUCTURE_DESIGN.md`。
+
 ## 两种审查模式
 
 - `complete`：完整申报材料包。成功解析后未发现必传材料，可以判定缺失。
@@ -90,6 +102,7 @@ python3 local_review/run_qualification_profile.py \
 - `materials.json`：材料目录、页码及分类证据。
 - `extracted_fields.json`：核心字段及证据页码。
 - `rule_results.json`：规则检查结果。
+- `subject_structure.json`：申报方式、多主体、独立法人和上级单位关系校验结果。
 - `review_report.md`：便于人工查看的审查报告。
 
 批量运行还会生成：
@@ -125,3 +138,4 @@ python3 local_review/run_qualification_profile.py \
 - `TEST_REPORT.md`
 - `UPWARD_BRIEF.md`
 - `QUALIFICATION_PROFILE_DESIGN.md`
+- `SUBJECT_STRUCTURE_DESIGN.md`

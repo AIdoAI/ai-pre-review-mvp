@@ -12,6 +12,7 @@ from .mineru_reader import normalize_mineru_json
 from .presence import annotate_material_presence
 from .report import render_batch_summary, render_report
 from .rule_engine import load_policy, load_rules, run_rules
+from .subject_structure import apply_material_assignments, prepare_subject_structure
 
 
 def write_json(path: Path, value: Any) -> None:
@@ -35,6 +36,7 @@ def compact_material_catalog(
             {
                 "material_id": material["material_id"],
                 "document_type": material["document_type"],
+                "ownership": material.get("ownership"),
                 "requirement": policy["materials"].get(
                     material["document_type"],
                     {"requirement": "unknown"},
@@ -120,8 +122,11 @@ def run_submission(
                     "empty_pages": [],
                 }
             )
+    subject_structure = prepare_subject_structure(submission)
     review_submission = {
         **submission,
+        "conditions": subject_structure["derived_conditions"],
+        "_subject_structure": subject_structure,
         "_parse_complete": all(item["parse_status"] == "success" for item in parse_details),
         "_parse_details": parse_details,
     }
@@ -130,6 +135,11 @@ def run_submission(
     rules = load_rules(rules_path)
     policy = load_policy(policy_path)
     annotate_material_presence(materials, policy)
+    unmatched_assignments = apply_material_assignments(
+        materials,
+        submission.get("material_assignments", []),
+    )
+    review_submission["_unmatched_material_assignments"] = unmatched_assignments
     extracted = extract_all(materials)
     rule_results = run_rules(review_submission, materials, extracted, rules, policy)
     material_catalog = compact_material_catalog(materials, policy)
@@ -137,6 +147,7 @@ def run_submission(
     target = output_root / submission["submission_id"]
     target.mkdir(parents=True, exist_ok=True)
     write_json(target / "normalized_documents.json", normalized)
+    write_json(target / "subject_structure.json", subject_structure)
     write_json(target / "material_catalog.json", material_catalog)
     write_json(target / "materials.json", materials)
     write_json(target / "extracted_fields.json", extracted)
@@ -148,6 +159,7 @@ def run_submission(
     return {
         "submission_id": submission["submission_id"],
         "name": submission["name"],
+        "subject_structure": subject_structure,
         "material_catalog": material_catalog,
         "materials": materials,
         "extracted": extracted,
