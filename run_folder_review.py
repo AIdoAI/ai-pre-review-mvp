@@ -39,9 +39,12 @@ def main() -> None:
     print("")
     print(result["conclusion"])
     print("")
+    print(result["per_file_report"])
+    print("")
     print(f'识别材料数：{len(result["materials"])}')
-    print(f'报告位置：{result["output_dir"]}/review_report.md')
+    print(f'完整报告：{result["output_dir"]}/review_report.md')
     print(f'结论文件：{result["output_dir"]}/conclusion.md')
+    print(f'逐文件报告：{result["output_dir"]}/per_file_report.md')
     print(f'本次手动选项记录：{manifest_path}')
 
 

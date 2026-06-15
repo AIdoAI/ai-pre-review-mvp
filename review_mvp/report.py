@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 import re
 
@@ -259,6 +260,249 @@ def render_conclusion(rule_results: dict[str, Any]) -> str:
         lines.append("")
     lines.append(f"### ✅ 已通过（{len(buckets['pass'])} 项，已确认）")
     lines.append("、".join(conclusion_label(item["description"]) for item in buckets["pass"]) or "（无）")
+    lines.append("")
+    return "\n".join(lines)
+
+
+STATUS_ICON = {
+    "pass": "✅",
+    "fail": "❌",
+    "manual_review": "⚠️",
+    "warning": "🟡",
+    "not_assessable": "❓",
+}
+STATUS_ORDER = {"fail": 4, "manual_review": 3, "warning": 2, "not_assessable": 1, "pass": 0}
+FILE_VERDICT = {
+    "fail": "❌ 不合规",
+    "manual_review": "⚠️ 待人工",
+    "warning": "🟡 建议补正",
+    "not_assessable": "❓ 无法判断",
+    "pass": "✅ 合规",
+}
+
+# 规则 → 该规则归属的材料类型（用于无证据页时的归属与“未提供材料”归集）。
+RULE_DOCTYPE = {
+    "HR-2.1-LICENSE": "营业执照",
+    "HR-2.1-CREDIT": "信用记录证明",
+    "HR-2.1-DECLARATION": "法定代表人无重大违法记录声明函",
+    "HR-2.1-COMMITMENT": "申报材料真实性承诺书",
+    "HR-2.1-FINANCIAL": "主营业务收入或财务证明",
+    "HR-2.1-RD-INVESTMENT": "研发投入证明",
+    "HR-3.1-APPLICATION": "申报书",
+    "HR-2.5-BUILDING": "正在建设阶段证明",
+    "HR-2.5-PLANNED": "计划实施阶段证明",
+    "HR-2.4-BRANCH": "分支机构专项授权文件",
+    "HR-2.3-JOINT": "联合申报支持材料",
+    "HR-6.1": "申报材料真实性承诺书",
+    "HR-6.3": "申报材料真实性承诺书",
+    "MR-COMMITMENT-CONTENT": "申报材料真实性承诺书",
+    "MR-COMMITMENT-VISUAL": "申报材料真实性承诺书",
+    "MR-ENTITY-TYPE": "营业执照",
+}
+GROUP_MEMBERS = {"联合申报支持材料": ["项目合作协议", "联合申报协议", "牵头方申报声明"]}
+# 审核项标准（简述）。
+STANDARD_HINTS = {
+    "HR-2.1-LICENSE": "企业法人营业执照（主体资格）",
+    "HR-2.1-CREDIT": "信用中国/政府采购网征信，近三年无不良记录",
+    "HR-2.1-DECLARATION": "法定代表人无重大违法记录声明函（公章）",
+    "HR-2.1-COMMITMENT": "申报材料真实性承诺书（公章+签字）",
+    "HR-2.1-FINANCIAL": "上一年度主营业务收入/财务证明",
+    "HR-2.1-RD-INVESTMENT": "上一年度研发投入证明（独立成证）",
+    "HR-3.1-APPLICATION": "申报书（基本信息表+任务书+附件）",
+    "HR-2.5-BUILDING": "正在建设阶段证明",
+    "HR-2.5-PLANNED": "计划实施阶段证明",
+    "HR-2.4-BRANCH": "总公司专项授权及营业执照复印件",
+    "HR-2.3-JOINT": "联合申报支持材料三选一（均须盖章）",
+    "HR-6.1": "承诺书联系人/电话非空",
+    "HR-6.3": "承诺书日期年份为2026",
+    "MR-COMMITMENT-CONTENT": "承诺书关键要素完整",
+    "MR-COMMITMENT-VISUAL": "承诺书签字/公章真伪",
+    "MR-ENTITY-TYPE": "国资身份（股权穿透/上级单位）",
+    "MR-CLASSIFICATION": "材料分类置信度",
+}
+CATEGORY_GROUP = {
+    "主体资格证明": "资格合规",
+    "合规证明": "资格合规",
+    "财务证明": "财务证明",
+    "财税辅助证明": "财务证明",
+    "研发能力证明": "研发资质",
+    "荣誉资质证明": "研发资质",
+    "行业资质证明": "研发资质",
+    "特殊情形证明": "联合/特殊情形",
+    "申报主体材料": "申报主体",
+    "项目阶段证明": "阶段证明",
+}
+
+
+def _clean_desc(description: str) -> str:
+    return description.replace("检查", "").replace("（三选一）", "").strip()
+
+
+def _source_to_original(materials: list[dict[str, Any]]) -> dict[str, str]:
+    mapping: dict[str, str] = {}
+    for material in materials:
+        for segment in material.get("segments", []):
+            source = segment.get("source_file")
+            if source:
+                mapping[source] = segment.get("original_file") or Path(source).name
+    return mapping
+
+
+def _rule_files(rule: dict[str, Any], source_to_original: dict[str, str]) -> list[str]:
+    files: list[str] = []
+    for token in rule.get("evidence_pages", []):
+        source = token.rsplit("#P", 1)[0]
+        original = source_to_original.get(source)
+        if original and original not in files:
+            files.append(original)
+    return files
+
+
+def _file_category(file_mats: list[dict[str, Any]]) -> str:
+    if not file_mats:
+        return "—"
+    priority = {
+        "required": 3, "conditional_required": 3, "group_member": 3,
+        "recommended": 2, "auxiliary": 1,
+    }
+    best = max(file_mats, key=lambda m: priority.get(m.get("requirement", "unknown"), 0))
+    return CATEGORY_GROUP.get(best["category"], best["category"])
+
+
+def render_per_file_report(
+    submission: dict[str, Any],
+    materials: list[dict[str, Any]],
+    rule_results: dict[str, Any],
+) -> str:
+    """Auto-generate a per-file review (detailed tables + overview)."""
+    source_to_original = _source_to_original(materials)
+
+    files: list[str] = []
+    for item in submission.get("_parse_details", []):
+        original = item.get("original_file") or Path(item["path"]).name
+        if original not in files:
+            files.append(original)
+    for material in materials:
+        for segment in material.get("segments", []):
+            original = segment.get("original_file")
+            if original and original not in files:
+                files.append(original)
+
+    file_materials: dict[str, list[dict[str, Any]]] = {original: [] for original in files}
+    for material in materials:
+        for original in {
+            seg.get("original_file") for seg in material.get("segments", []) if seg.get("original_file")
+        }:
+            file_materials.setdefault(original, []).append(material)
+
+    parse_status = {
+        (item.get("original_file") or Path(item["path"]).name): item.get("parse_status", "success")
+        for item in submission.get("_parse_details", [])
+    }
+
+    file_rules: dict[str, list[dict[str, Any]]] = {original: [] for original in files}
+    missing_rules: list[dict[str, Any]] = []
+    global_rules: list[dict[str, Any]] = []
+    for rule in rule_results.get("results", []):
+        targets = _rule_files(rule, source_to_original)
+        if not targets:
+            doctype = RULE_DOCTYPE.get(rule["rule_id"])
+            if doctype:
+                members = GROUP_MEMBERS.get(doctype, [doctype])
+                targets = [
+                    original for original in files
+                    if any(m["document_type"] in members for m in file_materials.get(original, []))
+                ]
+                if not targets:
+                    missing_rules.append(rule)
+                    continue
+            else:
+                global_rules.append(rule)
+                continue
+        for original in targets:
+            file_rules.setdefault(original, []).append(rule)
+
+    def verdict(original: str) -> tuple[str, int]:
+        rules = file_rules.get(original, [])
+        mats = file_materials.get(original, [])
+        if parse_status.get(original, "success") != "success":
+            return "⚠️ 解析未完整（转人工）", 3
+        if mats and all(m.get("requirement") in {"recommended", "auxiliary"} for m in mats):
+            return "✅ 识别（辅助）", 0
+        if not rules:
+            return ("❓ 无法判断", 1) if not mats else ("✅ 合规", 0)
+        worst = max(STATUS_ORDER[r["status"]] for r in rules)
+        label = next(k for k, v in STATUS_ORDER.items() if v == worst)
+        return FILE_VERDICT[label], worst
+
+    lines = ["# 逐文件审查", ""]
+    overview: list[tuple[int, str, str, str, str]] = []
+    for index, original in enumerate(files, start=1):
+        mats = file_materials.get(original, [])
+        rules = file_rules.get(original, [])
+        v_label, _ = verdict(original)
+        category = _file_category(mats)
+        types = "、".join(dict.fromkeys(m["document_type"] for m in mats)) or "（未识别到材料）"
+        lines.append(f"## {index:02d} {original} → {v_label}")
+        lines.append(f"- 识别材料：{types}")
+        if parse_status.get(original, "success") != "success":
+            lines.append(f"- ⚠️ 解析状态：{parse_status.get(original)}，相关判断转人工，不据此判缺失。")
+        if rules:
+            lines.append("")
+            lines.append("| 审核项 | 标准 | 审核结果 |")
+            lines.append("|---|---|---|")
+            for rule in rules:
+                standard = STANDARD_HINTS.get(rule["rule_id"], "—")
+                reason = re.sub(r"\s+", " ", rule["reason"]).replace("|", " ").strip()
+                lines.append(
+                    f"| {_clean_desc(rule['description'])} | {standard} | "
+                    f"{STATUS_ICON[rule['status']]} {reason} |"
+                )
+        lines.append("")
+        # 关键问题（用于总览）
+        nonpass = [r for r in rules if r["status"] != "pass"]
+        if parse_status.get(original, "success") != "success":
+            issue = "解析未完整，转人工复核（不据此判缺失）"
+        elif nonpass:
+            issue = "；".join(_clean_desc(r["description"]) for r in nonpass[:3])
+        elif mats and all(m.get("requirement") in {"recommended", "auxiliary"} for m in mats):
+            issue = "辅助材料，已识别，不参与缺失"
+        elif mats:
+            issue = "必要项已确认"
+        else:
+            issue = "未识别到材料"
+        overview.append((index, original, category, v_label, issue))
+
+    if missing_rules:
+        lines.append("## 未提供 / 无法判断的材料")
+        lines.append("")
+        lines.append("| 材料 | 标准 | 结论 |")
+        lines.append("|---|---|---|")
+        for rule in missing_rules:
+            standard = STANDARD_HINTS.get(rule["rule_id"], "—")
+            reason = re.sub(r"\s+", " ", rule["reason"]).replace("|", " ").strip()
+            lines.append(
+                f"| {_clean_desc(rule['description'])} | {standard} | "
+                f"{STATUS_ICON[rule['status']]} {reason} |"
+            )
+        lines.append("")
+
+    if global_rules:
+        lines.append("## 跨文件 / 主体结构检查")
+        lines.append("")
+        lines.append("| 检查项 | 结果 |")
+        lines.append("|---|---|")
+        for rule in global_rules:
+            reason = re.sub(r"\s+", " ", rule["reason"]).replace("|", " ").strip()
+            lines.append(f"| {_clean_desc(rule['description'])} | {STATUS_ICON[rule['status']]} {reason} |")
+        lines.append("")
+
+    lines.append("## 📊 总览")
+    lines.append("")
+    lines.append("| 序号 | 文件 | 类别 | 审核结果 | 关键问题 |")
+    lines.append("|---|---|---|---|---|")
+    for index, original, category, v_label, issue in overview:
+        lines.append(f"| {index:02d} | {original} | {category} | {v_label} | {issue} |")
     lines.append("")
     return "\n".join(lines)
 
