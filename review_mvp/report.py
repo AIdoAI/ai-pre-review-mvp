@@ -178,6 +178,91 @@ def render_report(
     return "\n".join(lines)
 
 
+VERDICT_LABELS = {
+    "预审不通过": ("❌ 预审不通过", "存在硬性缺失或不合规项，须整改后才能进入下一环节"),
+    "待人工复核": ("⚠️ 待人工复核", "未触发硬性不通过，但有需要人工确认的事项"),
+    "建议补正": ("🟡 建议补正", "材料基本齐全，有少量需补正项"),
+    "预审通过": ("✅ 预审通过", "形式审查未发现问题"),
+    "局部样本验证完成": ("❓ 局部样本（无法终判）", "仅为局部样本，未覆盖全部材料，不作最终结论"),
+}
+
+# 针对 fail 项的补正建议；未命中走通用兜底。
+FIX_SUGGESTIONS = {
+    "HR-2.1-LICENSE": "补交企业法人营业执照",
+    "HR-2.1-CREDIT": "补交信用中国/政府采购网征信材料（近三年无不良信用记录）",
+    "HR-2.1-DECLARATION": "补交法定代表人无重大违法记录声明函（加盖公章）",
+    "HR-2.1-COMMITMENT": "补交申报材料真实性承诺书（公章+法定代表人签字）",
+    "HR-2.1-FINANCIAL": "补交上一年度主营业务收入或财务证明",
+    "HR-2.1-RD-INVESTMENT": "补交上一年度研发投入证明（研发投入财务报表或上级单位研发费用归集证明）",
+    "HR-2.3-JOINT": "补交联合申报支持材料三选一（盖章项目合作协议/盖章联合申报协议/盖章的牵头方申报声明）任一份",
+    "HR-2.4-BRANCH": "补交总公司专项授权申报证明文件及总公司营业执照复印件",
+    "HR-2.5-BUILDING": "补交“正在建设”阶段证明（当前性能指标及应用进展、项目投资及实施进度）",
+    "HR-2.5-PLANNED": "补交“计划实施”阶段证明（前期准备及技术可行性、立项与启动条件）",
+    "HR-3.1-APPLICATION": "补交申报书（含基本信息表、项目任务书、附件证明）",
+}
+
+
+def conclusion_label(description: str) -> str:
+    return description.replace("检查", "").replace("（三选一）", "").strip()
+
+
+def render_conclusion(rule_results: dict[str, Any]) -> str:
+    """Render one user-friendly, format-unified conclusion from rule results."""
+    counts = rule_results.get("counts", {})
+    buckets: dict[str, list[dict[str, Any]]] = {
+        "fail": [], "manual_review": [], "not_assessable": [], "warning": [], "pass": [],
+    }
+    for item in rule_results.get("results", []):
+        buckets.get(item["status"], buckets["pass"]).append(item)
+
+    head, note = VERDICT_LABELS.get(
+        rule_results.get("overall_status", ""),
+        (rule_results.get("overall_status", "未知"), ""),
+    )
+    lines = [
+        f"## 预审结论：{head}",
+        f"> {note}",
+        (
+            f"> 汇总：通过 {counts.get('pass', 0)} · 不通过 {counts.get('fail', 0)} · "
+            f"待人工 {counts.get('manual_review', 0)} · 无法判断 {counts.get('not_assessable', 0)}"
+        ),
+        "",
+    ]
+    if buckets["fail"]:
+        lines.append("### ❌ 缺什么 / 不符合（必须整改）")
+        for item in buckets["fail"]:
+            lines.append(f"- **{conclusion_label(item['description'])}**：{item['reason']}")
+        lines.append("")
+        lines.append("### 🔧 需要补什么（补正建议）")
+        for item in buckets["fail"]:
+            lines.append(
+                f"- {FIX_SUGGESTIONS.get(item['rule_id'], '补正：' + conclusion_label(item['description']))}"
+            )
+        lines.append("")
+    if buckets["warning"]:
+        lines.append("### 🟡 建议补正（不阻断）")
+        for item in buckets["warning"]:
+            lines.append(f"- **{conclusion_label(item['description'])}**：{item['reason']}")
+        lines.append("")
+    if buckets["manual_review"]:
+        lines.append("### ⚠️ 需要人工审查")
+        for item in buckets["manual_review"]:
+            reason = re.sub(r"\s+", " ", item["reason"]).strip()
+            pages = compact_evidence_pages(item.get("evidence_pages"))
+            suffix = f"（证据：{pages}）" if pages else ""
+            lines.append(f"- **{conclusion_label(item['description'])}**：{reason}{suffix}")
+        lines.append("")
+    if buckets["not_assessable"]:
+        lines.append("### ❓ 暂无法判断（局部样本/解析不全，不等于材料缺失）")
+        for item in buckets["not_assessable"]:
+            lines.append(f"- {conclusion_label(item['description'])}：{item['reason']}")
+        lines.append("")
+    lines.append(f"### ✅ 已通过（{len(buckets['pass'])} 项，已确认）")
+    lines.append("、".join(conclusion_label(item["description"]) for item in buckets["pass"]) or "（无）")
+    lines.append("")
+    return "\n".join(lines)
+
+
 def render_batch_summary(items: list[dict[str, Any]]) -> str:
     lines = [
         "# AI预审本地MVP批量测试摘要",

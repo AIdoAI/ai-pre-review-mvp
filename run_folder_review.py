@@ -37,9 +37,11 @@ def main() -> None:
 
     result = run_manifest(manifest_path, output)[0]
     print("")
-    print(f'审查完成：{result["rule_results"]["overall_status"]}')
+    print(result["conclusion"])
+    print("")
     print(f'识别材料数：{len(result["materials"])}')
     print(f'报告位置：{result["output_dir"]}/review_report.md')
+    print(f'结论文件：{result["output_dir"]}/conclusion.md')
     print(f'本次手动选项记录：{manifest_path}')
 
 

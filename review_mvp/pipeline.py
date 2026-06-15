@@ -10,7 +10,7 @@ from .classifier import load_material_types, segment_documents
 from .extractor import extract_all
 from .mineru_reader import normalize_mineru_json
 from .presence import annotate_material_presence
-from .report import render_batch_summary, render_report
+from .report import render_batch_summary, render_conclusion, render_report
 from .rule_engine import load_policy, load_rules, run_rules
 from .subject_structure import apply_material_assignments, prepare_subject_structure
 
@@ -161,6 +161,7 @@ def run_submission(
     extracted = extract_all(materials)
     rule_results = run_rules(review_submission, materials, extracted, rules, policy)
     material_catalog = compact_material_catalog(materials, policy)
+    conclusion = render_conclusion(rule_results)
 
     target = output_root / submission["submission_id"]
     target.mkdir(parents=True, exist_ok=True)
@@ -170,8 +171,9 @@ def run_submission(
     write_json(target / "materials.json", materials)
     write_json(target / "extracted_fields.json", extracted)
     write_json(target / "rule_results.json", rule_results)
+    (target / "conclusion.md").write_text(conclusion, encoding="utf-8")
     (target / "review_report.md").write_text(
-        render_report(review_submission, materials, extracted, rule_results),
+        conclusion + "\n---\n\n" + render_report(review_submission, materials, extracted, rule_results),
         encoding="utf-8",
     )
     return {
@@ -182,6 +184,7 @@ def run_submission(
         "materials": materials,
         "extracted": extracted,
         "rule_results": rule_results,
+        "conclusion": conclusion,
         "output_dir": str(target),
     }
 
