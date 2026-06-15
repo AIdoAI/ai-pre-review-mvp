@@ -74,7 +74,15 @@ def is_mineru_json(path: Path) -> bool:
         data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError):
         return False
-    return isinstance(data, dict) and isinstance(data.get("pdf_info"), list)
+    # MinerU middle.json (local pipeline): {"pdf_info": [...]}
+    if isinstance(data, dict) and isinstance(data.get("pdf_info"), list):
+        return True
+    # MinerU Open API content_list: [{"page_idx":..,"type":..,"text":..}, ...]
+    if isinstance(data, dict) and isinstance(data.get("content_list"), list):
+        data = data["content_list"]
+    if isinstance(data, list):
+        return any(isinstance(block, dict) and "page_idx" in block for block in data[:20])
+    return False
 
 
 def scan_sample_folder(folder: Path) -> dict[str, Any]:
