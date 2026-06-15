@@ -15,7 +15,7 @@
     "HR-1.2": {
       "status": "supported",
       "auto_reject_enabled": true,
-      "implemented": ["联合申报协议条件性存在检查", "结构化单位数量检查", "牵头单位唯一性与国有属性检查"],
+      "implemented": ["联合申报支持材料三选一条件性存在检查", "结构化单位数量检查", "牵头单位唯一性与国有属性检查"],
       "guard": "需由平台或人工确认后提供subject_structure结构化字段"
     },
     "HR-1.3": {
@@ -39,8 +39,8 @@
     "HR-2.3": {
       "status": "supported",
       "auto_reject_enabled": true,
-      "implemented": ["联合申报场景下协议存在性"],
-      "guard": "需由清单明确标记joint_declaration条件"
+      "implemented": ["联合申报场景下三选一支持材料存在性（项目合作协议/联合申报协议/牵头方申报声明，任一即满足）"],
+      "guard": "需由清单明确标记joint_declaration条件；盖章真伪与知识产权无异议表述转人工复核"
     },
     "HR-2.4": {
       "status": "partial",

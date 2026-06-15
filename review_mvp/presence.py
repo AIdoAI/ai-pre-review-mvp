@@ -12,7 +12,9 @@ def assess_material_presence(
     requirement = material_policy.get("requirement", "unknown")
     confirmation_mode = material_policy.get(
         "presence_confirmation",
-        "strong_title" if requirement in {"required", "conditional_required"} else "observed",
+        "strong_title"
+        if requirement in {"required", "conditional_required", "group_member"}
+        else "observed",
     )
     start_patterns = material.get("classification_evidence", {}).get("start_patterns", [])
 

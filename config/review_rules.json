@@ -7,10 +7,12 @@
     "申报材料真实性承诺书": "HR-2.1-COMMITMENT",
     "主营业务收入或财务证明": "HR-2.1-FINANCIAL",
     "研发投入证明": "HR-2.1-RD-INVESTMENT",
-    "联合申报协议": "HR-2.3-JOINT",
     "分支机构专项授权文件": "HR-2.4-BRANCH",
     "正在建设阶段证明": "HR-2.5-BUILDING",
     "计划实施阶段证明": "HR-2.5-PLANNED"
+  },
+  "material_group_rule_ids": {
+    "联合申报支持材料": "HR-2.3-JOINT"
   },
   "commitment_required_phrases": [
     "资料真实性负责",

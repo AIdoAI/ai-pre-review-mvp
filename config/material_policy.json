@@ -6,7 +6,18 @@
     "irrelevant材料仅提示可能无关，不参与审查结论。",
     "《副本参赛需准备文件》包含部分内部加严和推荐要求，不全部等同于官方硬规则。"
     ,"必要材料默认必须命中材料强标题或起始特征，通用关键词弱匹配只转人工复核。"
+    ,"联合申报支持材料为三选一：项目合作协议、联合申报协议、牵头方申报声明（均须盖章），任一类被识别即满足存在性，缺失判断按 material_groups 的 one_of 组进行；盖章真伪与知识产权表述转人工复核。"
   ],
+  "material_groups": {
+    "联合申报支持材料": {
+      "requirement": "conditional_required",
+      "condition": "joint_declaration",
+      "missing_action": "fail",
+      "mode": "one_of",
+      "members": ["项目合作协议", "联合申报协议", "牵头方申报声明"],
+      "note": "联合申报需在三类支持材料中提供任一类（均须盖章）：盖章项目合作协议、盖章联合申报协议、盖章的牵头方申报声明。任一类被识别即满足存在性；盖章真伪由人工复核。选择牵头方申报声明时，还须在“联合申报单位简介”中补充对知识产权无异议表述。"
+    }
+  },
   "materials": {
     "申报书": {
       "requirement": "required",
@@ -38,9 +49,19 @@
       "missing_action": "fail"
     },
     "联合申报协议": {
-      "requirement": "conditional_required",
-      "condition": "joint_declaration",
-      "missing_action": "fail"
+      "requirement": "group_member",
+      "group": "联合申报支持材料",
+      "missing_action": "ignore"
+    },
+    "项目合作协议": {
+      "requirement": "group_member",
+      "group": "联合申报支持材料",
+      "missing_action": "ignore"
+    },
+    "牵头方申报声明": {
+      "requirement": "group_member",
+      "group": "联合申报支持材料",
+      "missing_action": "ignore"
     },
     "分支机构专项授权文件": {
       "requirement": "conditional_required",

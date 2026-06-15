@@ -108,11 +108,6 @@ def run_rules(
             # Structured entity checks validate one authorization per
             # non-independent applicant and its parent relationship.
             continue
-        if subject_structure.get("provided") and material_type == "联合申报协议":
-            # The current form accepts one of three joint-declaration support
-            # materials. Their existence, seals, and wording remain manual
-            # review until all three parser paths are implemented.
-            continue
         rule_id = rules["material_rule_ids"].get(material_type, f"MAT-{material_type}")
         candidates = m_index.get(material_type, [])
         confirmed = [
@@ -156,6 +151,63 @@ def run_rules(
                     f"检查{material_type}",
                     reason,
                 )
+            )
+
+    for group_name, group_policy in policy.get("material_groups", {}).items():
+        requirement = group_policy.get("requirement")
+        applicable = requirement == "required" or (
+            requirement == "conditional_required"
+            and group_policy.get("condition") in conditions
+        )
+        if not applicable:
+            continue
+        rule_id = rules.get("material_group_rule_ids", {}).get(group_name, f"GROUP-{group_name}")
+        members = group_policy.get("members", [])
+        member_candidates = [item for member in members for item in m_index.get(member, [])]
+        confirmed = [
+            item for item in member_candidates
+            if item.get("presence_assessment", {}).get("eligible_for_required_presence")
+        ]
+        if confirmed:
+            matched_types = "、".join(sorted({item["document_type"] for item in confirmed}))
+            pages = sorted({page for item in confirmed for page in item["pages"]})
+            results.append(
+                result(
+                    rule_id,
+                    "pass",
+                    f"检查{group_name}（三选一）",
+                    f"已通过强标题证据确认三选一支持材料：{matched_types}",
+                    pages,
+                )
+            )
+        elif member_candidates:
+            pages = sorted({page for item in member_candidates for page in item["pages"]})
+            results.append(
+                result(
+                    rule_id,
+                    "manual_review",
+                    f"检查{group_name}（三选一）",
+                    "发现疑似联合申报支持材料，但仅命中通用关键词，不能确认已提交或据此判缺",
+                    pages,
+                )
+            )
+        elif mode == "complete" and parse_complete:
+            results.append(
+                result(
+                    rule_id,
+                    "fail",
+                    f"检查{group_name}（三选一）",
+                    f"完整材料包中未识别到三类联合申报支持材料中的任一类：{'、'.join(members)}",
+                )
+            )
+        else:
+            reason = (
+                "存在未完成或仅部分解析的文件，不能判定该材料缺失"
+                if not parse_complete
+                else "当前为局部测试样本，未提供或未覆盖联合申报支持材料，不能判定缺失"
+            )
+            results.append(
+                result(rule_id, "not_assessable", f"检查{group_name}（三选一）", reason)
             )
 
     results.extend(entity_material_findings(submission, materials))

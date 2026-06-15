@@ -146,6 +146,22 @@
       "keywords": ["牵头单位", "知识产权归属", "各方权利义务"]
     },
     {
+      "id": "project_cooperation_agreement",
+      "name": "项目合作协议",
+      "category": "特殊情形证明",
+      "priority": 84,
+      "start_patterns": ["项目合作协议", "合作协议"],
+      "keywords": ["合作", "知识产权", "权利义务", "甲方", "乙方", "牵头"]
+    },
+    {
+      "id": "lead_declaration",
+      "name": "牵头方申报声明",
+      "category": "特殊情形证明",
+      "priority": 84,
+      "start_patterns": ["牵头方申报声明", "牵头单位申报声明", "申报声明"],
+      "keywords": ["牵头", "声明", "知识产权", "无异议", "联合申报"]
+    },
+    {
       "id": "owner_support_commitment",
       "name": "需求实施保障性承诺函",
       "category": "辅助说明",

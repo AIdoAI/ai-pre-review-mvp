@@ -243,7 +243,8 @@ def prepare_subject_structure(submission: dict[str, Any]) -> dict[str, Any]:
                     "manual_review",
                     "联合申报支持材料",
                     f"表单选择：{JOINT_MATERIAL_LABELS[joint_material_type]}；"
-                    f"材料存在性、盖章及相关表述暂转人工复核{extra_note}",
+                    f"材料存在性由HR-2.3-JOINT三选一规则自动核验，"
+                    f"盖章真伪及相关表述转人工复核{extra_note}",
                 )
             )
         else:
