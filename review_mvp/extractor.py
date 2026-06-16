@@ -64,10 +64,20 @@ def extract_common(text: str, material: dict[str, Any]) -> dict[str, Any]:
 
 def extract_commitment(text: str, material: dict[str, Any]) -> dict[str, Any]:
     project_name = first_match(text, [r"本单位提交了\s*(.*?)\s*参评"])
-    contact = first_match(text, [r"联系人\s*[:：]\s*([\u4e00-\u9fa5A-Za-z]{2,20})"])
-    phone = first_match(text, [r"(?:电话|联系电话)\s*[:：]\s*([0-9()（）+\- ]{6,30})"])
-    date = first_match(text, [r"((?:20\d{2})年\s*\d{1,2}月\s*\d{1,2}日)"])
-    year = first_match(text, [r"(20\d{2})年"])
+    # 联系人：允许“：/空格/无分隔”，可带括注（如“联系人（项目）”），值取连续中文
+    contact = first_match(text, [r"联系人(?:（[^）]*）)?[\s:：]*([\u4e00-\u9fa5·]{2,15})"])
+    # 电话：优先匹配真实手机号/固话，最后退到宽松数字串（减少抓到噪声）
+    phone = first_match(
+        text,
+        [
+            r"(?:联系电话|联系方式|电话|手机)[\s:：]*((?:\+?86[-\s]?)?1[3-9]\d{9})",
+            r"(?:联系电话|联系方式|电话|手机)[\s:：]*(0\d{2,3}[-\s]?\d{7,8})",
+            r"(?:联系电话|联系方式|电话|手机)[\s:：]*([0-9()（）+\-\s]{7,20})",
+        ],
+    )
+    # 日期/年份：容忍 OCR 在"年/月/日"前后插入的空格（如"2026 年 6 月 3 日"）
+    date = first_match(text, [r"(20\d{2}\s*年\s*\d{1,2}\s*月\s*\d{1,2}\s*日)"])
+    year = first_match(text, [r"(20\d{2})\s*年"])
     return {
         "project_name": field(project_name, material),
         "contact_person": field(contact, material),
