@@ -10,7 +10,13 @@ from .classifier import load_material_types, segment_documents
 from .extractor import extract_all
 from .mineru_reader import normalize_mineru_json
 from .presence import annotate_material_presence
-from .report import render_batch_summary, render_conclusion, render_per_file_report, render_report
+from .report import (
+    applicant_headline,
+    render_batch_summary,
+    render_conclusion,
+    render_per_file_report,
+    render_report,
+)
 from .rule_engine import load_policy, load_rules, run_rules
 from .subject_structure import apply_material_assignments, prepare_subject_structure
 
@@ -161,8 +167,9 @@ def run_submission(
     extracted = extract_all(materials)
     rule_results = run_rules(review_submission, materials, extracted, rules, policy)
     material_catalog = compact_material_catalog(materials, policy)
-    conclusion = render_conclusion(rule_results)
-    per_file_report = render_per_file_report(review_submission, materials, rule_results)
+    applicant_header = applicant_headline(subject_structure, extracted)
+    conclusion = render_conclusion(rule_results, applicant_header)
+    per_file_report = render_per_file_report(review_submission, materials, rule_results, applicant_header)
 
     target = output_root / submission["submission_id"]
     target.mkdir(parents=True, exist_ok=True)
@@ -177,7 +184,7 @@ def run_submission(
     (target / "review_report.md").write_text(
         conclusion
         + "\n---\n\n" + per_file_report
-        + "\n---\n\n" + render_report(review_submission, materials, extracted, rule_results),
+        + "\n---\n\n" + render_report(review_submission, materials, extracted, rule_results, applicant_header),
         encoding="utf-8",
     )
     return {

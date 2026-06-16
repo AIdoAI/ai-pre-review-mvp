@@ -55,9 +55,14 @@ def render_report(
     materials: list[dict[str, Any]],
     extracted: list[dict[str, Any]],
     rule_results: dict[str, Any],
+    applicant_header: str | None = None,
 ) -> str:
+    if applicant_header is None:
+        applicant_header = applicant_headline(submission.get("_subject_structure", {}), extracted)
     lines = [
         f'# {submission["name"]} - 本地AI预审报告',
+        "",
+        f'## 🏷️ {applicant_header}',
         "",
         f'- 审查模式：`{submission.get("mode", "partial")}`',
         f'- 申报方式：`{submission.get("_subject_structure", {}).get("declaration_type", "unspecified")}`',
@@ -207,7 +212,7 @@ def conclusion_label(description: str) -> str:
     return description.replace("检查", "").replace("（三选一）", "").strip()
 
 
-def render_conclusion(rule_results: dict[str, Any]) -> str:
+def render_conclusion(rule_results: dict[str, Any], applicant_header: str | None = None) -> str:
     """Render one user-friendly, format-unified conclusion from rule results."""
     counts = rule_results.get("counts", {})
     buckets: dict[str, list[dict[str, Any]]] = {
@@ -220,8 +225,10 @@ def render_conclusion(rule_results: dict[str, Any]) -> str:
         rule_results.get("overall_status", ""),
         (rule_results.get("overall_status", "未知"), ""),
     )
-    lines = [
-        f"## 预审结论：{head}",
+    lines = [f"## 预审结论：{head}"]
+    if applicant_header:
+        lines.append(f"### 🏷️ {applicant_header}")
+    lines += [
         f"> {note}",
         (
             f"> 汇总：通过 {counts.get('pass', 0)} · 不通过 {counts.get('fail', 0)} · "
@@ -338,6 +345,55 @@ def _clean_desc(description: str) -> str:
     return description.replace("检查", "").replace("（三选一）", "").strip()
 
 
+# 用于抽取"申报主体名称"的可信材料类型（与 rule_engine 跨文件一致性同源）。
+TRUSTED_NAME_TYPES = {
+    "营业执照", "申报材料真实性承诺书", "申报书",
+    "法定代表人无重大违法记录声明函", "信用记录证明",
+}
+_PLACEHOLDER_HINTS = ("待核", "待确认", "待补", "示例", "申报单位一", "申报单位二", "联合单位一", "联合单位二")
+
+
+def _looks_placeholder(name: str | None) -> bool:
+    return (not name) or any(hint in name for hint in _PLACEHOLDER_HINTS) or name.strip() == "申报单位"
+
+
+def applicant_headline(subject_structure: dict[str, Any], extracted: list[dict[str, Any]] | None) -> str:
+    """生成"牵头单位/申报主体"醒目行；名称优先取材料抽取，其次表单。"""
+    entities = subject_structure.get("entities", []) if subject_structure else []
+    declaration_type = (subject_structure or {}).get("declaration_type", "unspecified")
+    if declaration_type == "joint":
+        role = "牵头单位"
+        main = next((e for e in entities if e.get("declaration_role") == "lead"), None)
+    elif declaration_type == "independent":
+        role = "申报单位"
+        main = next((e for e in entities if e.get("declaration_role") in {"applicant", "lead"}), None)
+    else:
+        role = "申报主体"
+        main = entities[0] if entities else None
+    form_name = main.get("entity_name") if main else None
+
+    counts: dict[str, int] = {}
+    for item in extracted or []:
+        if item.get("document_type") in TRUSTED_NAME_TYPES:
+            value = item.get("fields", {}).get("company_name", {}).get("value")
+            if value:
+                counts[value] = counts.get(value, 0) + 1
+    extracted_name = max(counts, key=counts.get) if counts else None
+
+    if not _looks_placeholder(form_name):
+        name, note = form_name, ""
+        if extracted_name and extracted_name != form_name:
+            note = f"（材料中识别为「{extracted_name}」，需核对）"
+    elif extracted_name:
+        name = extracted_name
+        note = "（取自材料抽取）" if len(counts) <= 1 else "（材料中存在多个名称，需人工确认）"
+    else:
+        name, note = "未能自动确定", "（需人工 / 补充基础资料）"
+    suffix = "（独立申报）" if declaration_type == "independent" else (
+        "（联合申报）" if declaration_type == "joint" else "")
+    return f"{role}：{name}{note}{suffix}"
+
+
 def _source_to_original(materials: list[dict[str, Any]]) -> dict[str, str]:
     mapping: dict[str, str] = {}
     for material in materials:
@@ -373,6 +429,7 @@ def render_per_file_report(
     submission: dict[str, Any],
     materials: list[dict[str, Any]],
     rule_results: dict[str, Any],
+    applicant_header: str | None = None,
 ) -> str:
     """Auto-generate a per-file review (detailed tables + overview)."""
     source_to_original = _source_to_original(materials)
@@ -436,6 +493,8 @@ def render_per_file_report(
         return FILE_VERDICT[label], worst
 
     lines = ["# 逐文件审查", ""]
+    if applicant_header:
+        lines += [f"### 🏷️ {applicant_header}", ""]
     overview: list[tuple[int, str, str, str, str]] = []
     for index, original in enumerate(files, start=1):
         mats = file_materials.get(original, [])
