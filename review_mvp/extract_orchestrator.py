@@ -87,7 +87,9 @@ def _mineru_call(
     if pages:
         cmd += ["--pages", pages]
     try:
-        subprocess.run(cmd, capture_output=True, text=True, timeout=timeout + 30)
+        # 不用 text=True：Windows 控制台默认 GBK 解码 MinerU 输出会抛 UnicodeDecodeError；
+        # 这里只取产出的 JSON 文件，stdout 以字节丢弃即可。
+        subprocess.run(cmd, capture_output=True, timeout=timeout + 30)
     except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
         return None
     produced = out_dir / f"{path.stem}.json"

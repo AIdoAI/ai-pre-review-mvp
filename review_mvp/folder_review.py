@@ -5,8 +5,6 @@ from __future__ import annotations
 import json
 import re
 import sys
-import termios
-import tty
 from pathlib import Path
 from typing import Any, Callable
 
@@ -21,8 +19,35 @@ JOINT_MATERIAL_OPTIONS = {
     "3": "stamped_lead_declaration",
 }
 
+def _plain_menu(prompt: str, options: list[tuple[str, str]], default_key: str) -> str:
+    """无 termios（Windows）或非 tty 时的退化菜单：打印编号 + input 选择。"""
+    print(prompt)
+    for index, (key, label) in enumerate(options, 1):
+        mark = "（默认）" if key == default_key else ""
+        print(f"  {index}. {label}{mark}")
+    raw = input("输入序号后回车（直接回车用默认）：").strip()
+    if not raw:
+        return default_key
+    if raw.isdigit() and 1 <= int(raw) <= len(options):
+        return options[int(raw) - 1][0]
+    for key, _ in options:
+        if raw == key:
+            return key
+    return default_key
+
+
 def terminal_menu(prompt: str, options: list[tuple[str, str]], default_key: str) -> str:
-    """Select one option with arrow keys and Enter in an interactive terminal."""
+    """Select one option with arrow keys and Enter in an interactive terminal.
+
+    termios/tty 为 Unix 专有；Windows 或非交互输入时退回 _plain_menu。
+    """
+    try:
+        import termios
+        import tty
+    except ImportError:
+        return _plain_menu(prompt, options, default_key)
+    if not sys.stdin.isatty():
+        return _plain_menu(prompt, options, default_key)
     selected = next(
         (index for index, (key, _) in enumerate(options) if key == default_key),
         0,
