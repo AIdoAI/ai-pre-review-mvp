@@ -17,7 +17,9 @@ Tiers
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
+import time
 from pathlib import Path
 from typing import Any
 
@@ -66,20 +68,89 @@ def text_coverage(pages: list[str]) -> float:
     return nonempty / len(pages)
 
 
-def mineru_extract_json(path: Path, out_dir: Path, ocr: bool, timeout: int) -> Path | None:
-    """调用 MinerU 精度抽取并产出 content_list JSON；超时/失败返回 None。"""
+def _mineru_call(
+    path: Path, out_dir: Path, ocr: bool, timeout: int, pages: str | None = None,
+) -> list[dict[str, Any]] | None:
+    """单次 MinerU 精度抽取，返回 content_list；超时/失败/无产物返回 None。"""
     cmd = [
         "mineru-open-api", "extract", str(path),
         "-o", str(out_dir), "-f", "json", "--timeout", str(timeout),
     ]
     if ocr:
         cmd.append("--ocr")
+    if pages:
+        cmd += ["--pages", pages]
     try:
         subprocess.run(cmd, capture_output=True, text=True, timeout=timeout + 30)
     except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
         return None
     produced = out_dir / f"{path.stem}.json"
-    return produced if produced.exists() else None
+    if not produced.exists():
+        return None
+    try:
+        data = json.loads(produced.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return None
+    return data if isinstance(data, list) else data.get("content_list", [])
+
+
+def _mineru_with_retry(
+    path: Path, out_dir: Path, ocr: bool, timeout: int, pages: str | None,
+    retries: int, backoff: int,
+) -> list[dict[str, Any]] | None:
+    """带退避重试（多数超时是偶发网络/服务端负载）。"""
+    for attempt in range(retries + 1):
+        items = _mineru_call(path, out_dir, ocr, timeout, pages)
+        if items is not None:
+            return items
+        if attempt < retries:
+            time.sleep(backoff * (attempt + 1))
+    return None
+
+
+def mineru_extract(
+    path: Path, work_dir: Path, *, ocr: bool, timeout: int, page_count: int | None = None,
+    chunk_pages: int = 8, retries: int = 2, backoff: int = 5,
+) -> tuple[list[dict[str, Any]] | None, bool]:
+    """MinerU 精度抽取（含重试 + 大文件分块）。
+
+    返回 (content_list 或 None, complete)。分块时部分块失败 → 返回已成功块且
+    complete=False（partial）；全失败 → (None, False)。
+    """
+    # 小文件：单次（含重试）
+    if not page_count or page_count <= chunk_pages:
+        items = _mineru_with_retry(path, work_dir, ocr, timeout, None, retries, backoff)
+        return (items, items is not None)
+
+    # 大文件：按页分块，逐块重试，部分成功也保留
+    merged: list[dict[str, Any]] = []
+    global_page = 0
+    any_ok = False
+    all_ok = True
+    for start in range(1, page_count + 1, chunk_pages):
+        end = min(start + chunk_pages - 1, page_count)
+        chunk_dir = work_dir / f"_chunk_{path.stem}_{start}_{end}"
+        chunk_dir.mkdir(parents=True, exist_ok=True)
+        items = _mineru_with_retry(
+            path, chunk_dir, ocr, timeout, f"{start}-{end}", retries, backoff,
+        )
+        shutil.rmtree(chunk_dir, ignore_errors=True)
+        if items is None:
+            all_ok = False
+            continue
+        any_ok = True
+        by_local: dict[int, list[dict[str, Any]]] = {}
+        for item in items:
+            by_local.setdefault(item.get("page_idx", 0), []).append(item)
+        for local in sorted(by_local):
+            for item in by_local[local]:
+                remapped = dict(item)
+                remapped["page_idx"] = global_page
+                merged.append(remapped)
+            global_page += 1
+    if not any_ok:
+        return (None, False)
+    return (merged, all_ok)
 
 
 def _write_content_list(out_json: Path, items: list[dict[str, Any]]) -> None:
@@ -93,6 +164,9 @@ def extract_file(
     local_timeout: int = 60,
     mineru_timeout: int = 180,
     min_coverage: float = 0.6,
+    retries: int = 2,
+    backoff: int = 5,
+    chunk_pages: int = 8,
 ) -> dict[str, Any]:
     """单文件分层抽取，返回带 parse_status 的清单条目。"""
     original = path.name
@@ -100,11 +174,13 @@ def extract_file(
     out_json = cache_dir / f"{path.stem}.json"
     suffix = path.suffix.lower()
     partial_items: list[dict[str, Any]] = []
+    page_count = 1  # 图片/未知默认 1 页
 
     # Tier 0：本地文字层（仅 PDF）
     if suffix in TEXT_EXTS:
         pages = pdf_pages_text(path, timeout=local_timeout)
         if pages is not None:
+            page_count = len(pages)
             coverage = text_coverage(pages)
             items = text_pages_to_content_list(pages)
             if items and coverage >= min_coverage:
@@ -121,19 +197,26 @@ def extract_file(
                               "辅助材料且无文字层，转人工查看")
             partial_items = items  # required + 低覆盖 → 下方升级 OCR
 
-    # Tier 2：MinerU 精度（图片，或 required 低覆盖的扫描件）
-    produced = mineru_extract_json(path, cache_dir, ocr=True, timeout=mineru_timeout)
-    if produced:
-        return _entry(produced, original, "success", "mineru_ocr",
-                      "MinerU 精度抽取（OCR）")
+    # Tier 2：MinerU 精度（图片，或 required 低覆盖的扫描件）；含重试 + 大文件分块
+    items, complete = mineru_extract(
+        path, cache_dir, ocr=True, timeout=mineru_timeout, page_count=page_count,
+        chunk_pages=chunk_pages, retries=retries, backoff=backoff,
+    )
+    if items:
+        _write_content_list(out_json, items)
+        if complete:
+            return _entry(out_json, original, "success", "mineru_ocr",
+                          "MinerU 精度抽取（OCR，含重试/分块）")
+        return _entry(out_json, original, "partial", "mineru_ocr_partial",
+                      "OCR 分块部分成功，其余转人工")
 
     # Tier 3：失败/超时 → 转人工（保留已抽到的本地部分文字）
     if partial_items:
         _write_content_list(out_json, partial_items)
-        return _entry(out_json, original, "partial", "local_partial+mineru_timeout",
-                      "OCR 超时，保留本地部分文字，转人工")
+        return _entry(out_json, original, "partial", "local_partial+mineru_failed",
+                      "OCR 重试仍失败，保留本地部分文字，转人工")
     return _entry(path, original, "failed", "all_failed->manual",
-                  "本地无文字层且 OCR 超时/失败，转人工")
+                  "本地无文字层且 OCR 重试失败，转人工")
 
 
 def _entry(path: Path, original: str, status: str, tier: str, note: str) -> dict[str, Any]:
