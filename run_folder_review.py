@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path
 
 from review_mvp.extract_orchestrator import orchestrate_folder
@@ -21,6 +22,11 @@ def main() -> None:
         help="Output folder; defaults to local_review/output_folder_review",
     )
     args = parser.parse_args()
+
+    if os.name == "nt":
+        print("ℹ️ Windows 提示：本入口为交互式（箭头菜单在部分终端会退化为输入序号）。"
+              "更省心可改用非交互入口：python run_sample.py --input <文件夹> --form form.json"
+              "（支持批量 --parent，详见 DEPLOYMENT.md / 同事上手教程.md）。\n")
 
     scan_result = scan_sample_folder(args.input)
     print(f'样本名称：{scan_result["sample_name"]}')
