@@ -31,6 +31,11 @@ TEXT_EXTS = {".pdf"}
 IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".bmp", ".tif", ".tiff", ".webp"}
 
 
+def _exe(name: str) -> str:
+    """解析可执行名为完整路径，跨平台兼容 Windows 的 .cmd/.exe（npm 全局命令为 .cmd）。"""
+    return shutil.which(name) or name
+
+
 def guess_role(filename: str) -> str:
     """auxiliary（仅记录，不值得 OCR）/ required（走完整链）。"""
     if any(hint in filename for hint in AUXILIARY_FILENAME_HINTS):
@@ -41,15 +46,16 @@ def guess_role(filename: str) -> str:
 def pdf_pages_text(path: Path, timeout: int = 60) -> list[str] | None:
     """本地文字层抽取（poppler pdftotext）。返回逐页文本；不可用时返回 None。"""
     try:
+        # -enc UTF-8 强制 UTF-8 输出，避免 Windows 控制台默认 GBK 导致中文乱码
         proc = subprocess.run(
-            ["pdftotext", "-layout", str(path), "-"],
-            capture_output=True, text=True, timeout=timeout,
+            [_exe("pdftotext"), "-enc", "UTF-8", "-layout", str(path), "-"],
+            capture_output=True, timeout=timeout,
         )
     except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
         return None
     if proc.returncode != 0:
         return None
-    return proc.stdout.split("\f")  # pdftotext 以换页符分页
+    return proc.stdout.decode("utf-8", "ignore").split("\f")  # pdftotext 以换页符分页
 
 
 def text_pages_to_content_list(pages: list[str]) -> list[dict[str, Any]]:
@@ -73,7 +79,7 @@ def _mineru_call(
 ) -> list[dict[str, Any]] | None:
     """单次 MinerU 精度抽取，返回 content_list；超时/失败/无产物返回 None。"""
     cmd = [
-        "mineru-open-api", "extract", str(path),
+        _exe("mineru-open-api"), "extract", str(path),
         "-o", str(out_dir), "-f", "json", "--timeout", str(timeout),
     ]
     if ocr:

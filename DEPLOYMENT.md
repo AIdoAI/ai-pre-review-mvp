@@ -4,14 +4,25 @@
 
 ## 1. 环境要求
 
-| 依赖 | 要求 | 安装 / 检查 |
-|---|---|---|
-| Python | **≥ 3.10**（注意 macOS 自带的 `python3` 常是 3.9，不满足） | `python3.13 --version`；缺则 `brew install python@3.13` |
-| poppler（`pdftoppm`） | Claude 的 PDF 预览依赖 | macOS `brew install poppler`；Linux `apt install poppler-utils` |
-| MinerU CLI | 文档抽取 | `npm install -g mineru-open-api`；`mineru-open-api version` |
-| MinerU token | 精度抽取 / `-f json` 需要（`flash-extract` 免 token） | `mineru-open-api auth`（JWT 见 https://mineru.net/apiManage/token） |
+| 依赖 | 要求 | macOS / Linux | Windows |
+|---|---|---|---|
+| Python | ≥ 3.10 | `brew install python@3.13`；用 `python3.13` | `winget install Python.Python.3.12`（勾选 Add to PATH）；用 `py -3` 或 `python` |
+| poppler（`pdftotext`/`pdftoppm`） | 本地文字层抽取 | `brew install poppler`；Linux `apt install poppler-utils` | `choco install poppler` 或 `scoop install poppler`；或下载 poppler-windows 解压，把 `bin` 加入 PATH |
+| Node + MinerU CLI | 文档抽取 | `npm install -g mineru-open-api` | `winget install OpenJS.NodeJS.LTS`，重开终端后 `npm install -g mineru-open-api` |
+| MinerU token | OCR / `-f json` 需要（`flash-extract` 免 token） | `mineru-open-api auth` | 同左（JWT 见 https://mineru.net/apiManage/token） |
 
-> ⚠️ 所有命令请用 **`python3.13`** 运行，不要用默认 `python3`。
+> ⚠️ **Python 命令因系统而异**：macOS 用 `python3.13`；Windows 通常是 `py -3` 或 `python`。
+> 本文档示例里的 `python3.13` 在 Windows 上请相应换成 `py -3`（或 `python`）。
+>
+> **Windows 验证（PowerShell）**：
+> ```powershell
+> py -3 --version            # 或 python --version，需 ≥ 3.10
+> where.exe pdftotext        # 应能找到（poppler 已在 PATH）
+> where.exe mineru-open-api  # 应能找到
+> mineru-open-api auth --verify
+> ```
+> 若 `where.exe` 找不到某命令 → 该工具没装好或没加入 PATH，先解决再继续。代码内部调用
+> `pdftotext` / `mineru-open-api` 会用 `shutil.which` 自动解析（兼容 Windows 的 `.exe/.cmd`）。
 
 ## 2. 获取代码
 
