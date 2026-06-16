@@ -7,6 +7,7 @@ import argparse
 import json
 from pathlib import Path
 
+from review_mvp.extract_orchestrator import orchestrate_folder
 from review_mvp.folder_review import build_folder_manifest, collect_form_answers, scan_sample_folder
 from review_mvp.pipeline import run_manifest
 
@@ -25,13 +26,23 @@ def main() -> None:
     print(f'样本名称：{scan_result["sample_name"]}')
     print(f'发现MinerU JSON：{len(scan_result["mineru_files"])}个')
     print(f'其他文件（当前不会解析）：{len(scan_result["ignored_files"])}个')
+
+    output = (args.output or Path(__file__).parent / "output_folder_review").resolve()
+    output.mkdir(parents=True, exist_ok=True)
+
     if not scan_result["mineru_files"]:
-        raise SystemExit("未发现可审查的MinerU JSON。请先用MinerU解析PDF，再运行本入口。")
+        # 无现成 MinerU JSON：启动抽取编排层（本地文字层→选择性OCR→人工）
+        print("未发现现成 MinerU JSON，启动抽取编排层（本地文字层 → 选择性 OCR → 人工）...")
+        cache_dir = output / "_mineru_cache" / scan_result["sample_name"]
+        entries, log = orchestrate_folder(args.input, cache_dir)
+        for line in log:
+            print(line)
+        if not entries:
+            raise SystemExit("未发现可处理的原始文件（PDF/图片），也无 MinerU JSON。")
+        scan_result["mineru_files"] = entries
 
     mode, form_answers = collect_form_answers()
     manifest = build_folder_manifest(scan_result, mode, form_answers)
-    output = (args.output or Path(__file__).parent / "output_folder_review").resolve()
-    output.mkdir(parents=True, exist_ok=True)
     manifest_path = output / "generated_manifest.json"
     manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
 
