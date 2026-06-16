@@ -357,8 +357,10 @@ def _looks_placeholder(name: str | None) -> bool:
     return (not name) or any(hint in name for hint in _PLACEHOLDER_HINTS) or name.strip() == "申报单位"
 
 
-def applicant_headline(subject_structure: dict[str, Any], extracted: list[dict[str, Any]] | None) -> str:
-    """生成"牵头单位/申报主体"醒目行；名称优先取材料抽取，其次表单。"""
+def _resolve_main_unit(
+    subject_structure: dict[str, Any], extracted: list[dict[str, Any]] | None,
+) -> tuple[str, str, str, str]:
+    """返回 (role, name, note, declaration_type)；名称优先取材料抽取，其次表单。"""
     entities = subject_structure.get("entities", []) if subject_structure else []
     declaration_type = (subject_structure or {}).get("declaration_type", "unspecified")
     if declaration_type == "joint":
@@ -389,6 +391,18 @@ def applicant_headline(subject_structure: dict[str, Any], extracted: list[dict[s
         note = "（取自材料抽取）" if len(counts) <= 1 else "（材料中存在多个名称，需人工确认）"
     else:
         name, note = "未能自动确定", "（需人工 / 补充基础资料）"
+    return role, name, note, declaration_type
+
+
+def applicant_unit_name(subject_structure: dict[str, Any], extracted: list[dict[str, Any]] | None) -> str:
+    """仅返回主体单位名称（含必要标注），用于批量摘要列。"""
+    _, name, note, _ = _resolve_main_unit(subject_structure, extracted)
+    return f"{name}{note}"
+
+
+def applicant_headline(subject_structure: dict[str, Any], extracted: list[dict[str, Any]] | None) -> str:
+    """生成"牵头单位/申报主体"醒目行；名称优先取材料抽取，其次表单。"""
+    role, name, note, declaration_type = _resolve_main_unit(subject_structure, extracted)
     suffix = "（独立申报）" if declaration_type == "independent" else (
         "（联合申报）" if declaration_type == "joint" else "")
     return f"{role}：{name}{note}{suffix}"
@@ -570,13 +584,16 @@ def render_batch_summary(items: list[dict[str, Any]]) -> str:
     lines = [
         "# AI预审本地MVP批量测试摘要",
         "",
-        "| 样本 | 综合状态 | 识别材料数 | 通过 | 不通过 | 待人工复核 | 无法判断 |",
-        "|---|---|---:|---:|---:|---:|---:|",
+        "| 样本 | 牵头单位/申报主体 | 综合状态 | 识别材料数 | 通过 | 不通过 | 待人工复核 | 无法判断 |",
+        "|---|---|---|---:|---:|---:|---:|---:|",
     ]
     for item in items:
         counts = item["rule_results"]["counts"]
+        unit = applicant_unit_name(
+            item.get("subject_structure", {}), item.get("extracted", [])
+        ).replace("|", " ")
         lines.append(
-            f'| {item["name"]} | {item["rule_results"]["overall_status"]} | '
+            f'| {item["name"]} | {unit} | {item["rule_results"]["overall_status"]} | '
             f'{len(item["materials"])} | {counts["pass"]} | {counts["fail"]} | '
             f'{counts["manual_review"]} | {counts["not_assessable"]} |'
         )
