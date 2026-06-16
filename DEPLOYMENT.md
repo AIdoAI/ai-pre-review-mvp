@@ -42,9 +42,22 @@ mineru-open-api extract "营业执照.png" -o ./sample_folder/ -f json --ocr
 
 ## 4. 运行
 
+交互式（人工逐项选表单）：
 ```bash
 python3.13 run_folder_review.py --input "/绝对路径/某样本文件夹"
 ```
+
+非交互 / 批量（推荐给 Claude / CI / 多样本）：
+```bash
+# 单样本：表单走 JSON（字段见 config/form_answers_example.json）
+python3.13 run_sample.py --input "/路径/样本A" --form form.json
+# 多样本：并列多个文件夹
+python3.13 run_sample.py --input "/路径/样本A" "/路径/样本B"
+# 多样本：一个父目录，每个子文件夹算一个样本
+python3.13 run_sample.py --input "/路径/所有样本" --parent
+```
+- 每样本表单优先级：样本文件夹内的 `*form*.json` > 命令行 `--form` > 内置 `DEFAULT_FORM`（兜底告警）。
+- 批量会额外产出 `output_folder_review/batch_summary.md`（含「牵头单位/申报主体」列，便于汇总统计）。
 
 ### 4.1 抽取编排层（原始文件 → JSON，自动）
 
