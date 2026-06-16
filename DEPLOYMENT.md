@@ -30,10 +30,12 @@ cd ~/ai-pre-review-mvp
   - 文件名形如 `MinerU_<原文件名>__<时间戳>.json` 时，会自动回推原文件名
 - **基础资料文件**（可选）：`*基础资料*` / `*表单*` / `*答题*`，用于自动读取表单选项（申报方式、是否联合、牵头单位、项目阶段等）；缺失则交互询问。
 
-把 PDF/图片转成 MinerU JSON：
+**两种用法：**
+- 文件夹里**已有 MinerU JSON** → 直接审查（最快）。
+- 文件夹里是**原始 PDF/图片**（无 JSON）→ 入口会**自动启动抽取编排层**（见第 4.1 节），无需手工跑 MinerU。
 
+手工转 MinerU JSON（可选）：
 ```bash
-# 文字版 PDF / 图片（图片加 --ocr）
 mineru-open-api extract "申报书.pdf" -o ./sample_folder/ -f json
 mineru-open-api extract "营业执照.png" -o ./sample_folder/ -f json --ocr
 ```
@@ -43,6 +45,24 @@ mineru-open-api extract "营业执照.png" -o ./sample_folder/ -f json --ocr
 ```bash
 python3.13 run_folder_review.py --input "/绝对路径/某样本文件夹"
 ```
+
+### 4.1 抽取编排层（原始文件 → JSON，自动）
+
+当文件夹没有现成 MinerU JSON 时，`run_folder_review.py` 自动调用 `review_mvp/extract_orchestrator.py` 逐文件分层抽取，**让一个慢文件不拖垮整单**：
+
+| 层 | 手段 | 适用 |
+|---|---|---|
+| Tier 0 | 本地 `pdftotext`（免网络、毫秒级） | 有文字层的 PDF（覆盖率 ≥ 60% 直接用） |
+| Tier 2 | MinerU 精度 OCR（**含重试退避 + 大文件分块**） | 图片、扫描件、低文字层的必传件 |
+| Tier 3 | 转人工 | 重试仍失败 → `parse_status=failed`，规则层自动转人工 |
+
+要点：
+- **按角色给预算**：辅助材料（文件名含“荣誉/研发能力/专利/软著/奖”等）只做本地廉价抽取，**绝不为其烧 OCR**；必传件才走完整链。
+- **OCR 重试**：超时/失败默认重试 2 次、退避递增（多为偶发网络）。
+- **大文件分块**：页数 > 8 的文件按 `--pages` 逐块 OCR，**部分块失败仍保留已成功块**（`partial`→转人工）。
+- **铁律**：抽取失败/不全 → 转人工，**绝不判材料缺失**。
+- 缓存写在 `output_folder_review/_mineru_cache/<样本名>/`，不改动用户原文件夹。
+- 可调预算（`extract_file` 参数）：`mineru_timeout` / `retries` / `backoff` / `chunk_pages` / `min_coverage`。
 
 跑完会在终端打印「统一结论 + 逐文件报告」，并在 `output_folder_review/<样本名>/` 写出：
 
