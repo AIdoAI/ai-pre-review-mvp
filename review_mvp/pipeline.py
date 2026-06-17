@@ -10,6 +10,7 @@ from .classifier import load_material_types, segment_documents
 from .extractor import extract_all
 from .mineru_reader import normalize_mineru_json
 from .presence import annotate_material_presence
+from .plan_summary import render_summary_md, summarize_plan
 from .report import (
     applicant_headline,
     render_batch_summary,
@@ -17,6 +18,8 @@ from .report import (
     render_per_file_report,
     render_report,
 )
+
+_STAGE_LABEL = {"building": "正在建设", "planned": "计划实施"}
 from .rule_engine import load_policy, load_rules, run_rules
 from .subject_structure import apply_material_assignments, prepare_subject_structure
 
@@ -181,6 +184,16 @@ def run_submission(
     write_json(target / "rule_results.json", rule_results)
     (target / "conclusion.md").write_text(conclusion, encoding="utf-8")
     (target / "per_file_report.md").write_text(per_file_report, encoding="utf-8")
+
+    # P1 计划书提要（给专家）：与预审一起跑、分开出；检测到项目任务书才产出。
+    # llm_fn 暂为 None（抽取式骨架）；接入 Qwen 后由模型生成。
+    plan_summary = summarize_plan(
+        materials,
+        project_stage=_STAGE_LABEL.get(submission.get("form_answers", {}).get("project_stage")),
+    )
+    if plan_summary:
+        write_json(target / "plan_summary.json", plan_summary)
+        (target / "plan_summary.md").write_text(render_summary_md(plan_summary), encoding="utf-8")
     (target / "review_report.md").write_text(
         conclusion
         + "\n---\n\n" + per_file_report
