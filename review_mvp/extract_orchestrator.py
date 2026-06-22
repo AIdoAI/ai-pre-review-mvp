@@ -29,6 +29,36 @@ AUXILIARY_FILENAME_HINTS = (
 )
 TEXT_EXTS = {".pdf"}
 IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".bmp", ".tif", ".tiff", ".webp"}
+XLSX_EXTS = {".xlsx", ".xlsm"}
+
+
+def xlsx_to_content_list(path: Path, max_rows: int = 400) -> list[dict[str, Any]] | None:
+    """读 Excel（openpyxl）为 content_list：每个 sheet 一页，含表名 + 单元格文本。
+
+    缺 openpyxl / 加密 / 读取失败 → None（上层转人工）。data_only=True 取公式缓存值。
+    """
+    try:
+        import openpyxl
+    except ImportError:
+        return None
+    try:
+        wb = openpyxl.load_workbook(path, data_only=True, read_only=True)
+    except Exception:
+        return None
+    items: list[dict[str, Any]] = []
+    for idx, ws in enumerate(wb.worksheets):
+        lines = [str(ws.title)]
+        for r, row in enumerate(ws.iter_rows(values_only=True)):
+            if r >= max_rows:
+                break
+            cells = [("" if c is None else str(c)).strip() for c in row]
+            line = " ".join(c for c in cells if c)
+            if line:
+                lines.append(line)
+        text = "\n".join(lines).strip()
+        if len(text) > len(str(ws.title)):
+            items.append({"page_idx": idx, "type": "text", "text": text})
+    return items or None
 
 
 def _exe(name: str) -> str:
@@ -184,6 +214,15 @@ def extract_file(
     partial_items: list[dict[str, Any]] = []
     page_count = 1  # 图片/未知默认 1 页
 
+    # Excel：本地读取（openpyxl），不走网络/OCR
+    if suffix in XLSX_EXTS:
+        items = xlsx_to_content_list(path)
+        if items:
+            _write_content_list(out_json, items)
+            return _entry(out_json, original, "success", "local_xlsx", "本地读取 Excel（openpyxl）")
+        return _entry(path, original, "failed", "xlsx_failed->manual",
+                      "Excel 读取失败或缺 openpyxl，转人工")
+
     # Tier 0：本地文字层（仅 PDF）
     if suffix in TEXT_EXTS:
         pages = pdf_pages_text(path, timeout=local_timeout)
@@ -249,7 +288,7 @@ def orchestrate_folder(
     entries: list[dict[str, Any]] = []
     log: list[str] = []
     for path in sorted(p for p in input_folder.iterdir() if p.is_file()):
-        if path.suffix.lower() not in TEXT_EXTS | IMAGE_EXTS:
+        if path.suffix.lower() not in TEXT_EXTS | IMAGE_EXTS | XLSX_EXTS:
             continue
         entry = extract_file(path, cache_dir, **budgets)
         entries.append(entry)
