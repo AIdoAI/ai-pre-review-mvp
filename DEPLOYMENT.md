@@ -67,8 +67,18 @@ python3.13 run_sample.py --input "/路径/样本A" "/路径/样本B"
 # 多样本：一个父目录，每个子文件夹算一个样本
 python3.13 run_sample.py --input "/路径/所有样本" --parent
 ```
-- 每样本表单优先级：样本文件夹内的 `*form*.json` > 命令行 `--form` > 内置 `DEFAULT_FORM`（兜底告警）。
+- 每样本表单优先级：**`--excel` 明细** > 样本文件夹内 `*form*.json` > 命令行 `--form` > 内置 `DEFAULT_FORM`（兜底告警）。
 - 批量会额外产出 `output_folder_review/batch_summary.md`（含「牵头单位/申报主体」列，便于汇总统计）。
+
+Excel 驱动（"导出 Excel + 参赛用户文件夹"工作流，自动按文件夹生成各家表单）：
+```bash
+python3.13 run_sample.py --input "/路径/某批次父目录" --parent \
+  --excel "/路径/某批次父目录/3客明细.xlsx" --excel-password 8fai123
+```
+- 按 Excel「提交项目任务书」文件名前缀的数字 ↔ `参赛用户{N}` 文件夹名匹配；自动映射申报方式、
+  联合材料三选一、阶段、申报主体/联合成员。单位性质不从 Excel 采信（按铁律留空、由材料人工核实）。
+- 需要可选依赖：`pip install openpyxl`（读 xlsx）；Excel 加密时再装 `pip install msoffcrypto-tool`，
+  并用 `--excel-password` 传打开密码。（不装则不影响 `--form` / 交互方式。）
 
 ### 4.1 抽取编排层（原始文件 → JSON，自动）
 

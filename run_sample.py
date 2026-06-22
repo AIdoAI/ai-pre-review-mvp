@@ -62,9 +62,14 @@ def find_form_in_folder(folder: Path) -> Path | None:
 
 
 def resolve_form(
-    folder: Path, global_form: Path | None,
+    folder: Path,
+    global_form: Path | None,
+    excel_map: dict[str, tuple[dict[str, Any], str]] | None = None,
 ) -> tuple[dict[str, Any], str | None, str | None, str]:
-    """按优先级解析样本表单，返回 (form_answers, mode, sid, 来源说明)。"""
+    """按优先级解析样本表单：Excel > 样本内 *form*.json > --form > 内置默认。"""
+    if excel_map and folder.name in excel_map:
+        fa, mode = excel_map[folder.name]
+        return fa, mode, None, "Excel 明细"
     in_folder = find_form_in_folder(folder)
     if in_folder:
         fa, mode, sid = load_form(in_folder)
@@ -100,6 +105,8 @@ def main() -> None:
     parser.add_argument("--input", type=Path, nargs="+", required=True, help="一个或多个样本文件夹")
     parser.add_argument("--parent", action="store_true", help="把唯一的 --input 当父目录，其每个子文件夹为一个样本")
     parser.add_argument("--form", type=Path, help="全局表单 JSON；样本内 *form*.json 优先")
+    parser.add_argument("--excel", type=Path, help="参赛明细 Excel，自动按文件夹生成各家表单（最高优先级）")
+    parser.add_argument("--excel-password", help="Excel 打开密码（加密时）")
     parser.add_argument("--mode", choices=["partial", "complete"], help="审查模式；默认 partial")
     parser.add_argument("--output", type=Path, help="输出目录；默认 output_folder_review")
     args = parser.parse_args()
@@ -118,9 +125,18 @@ def main() -> None:
     output = (args.output or Path(__file__).parent / "output_folder_review").resolve()
     output.mkdir(parents=True, exist_ok=True)
 
+    excel_map: dict[str, tuple[dict[str, Any], str]] = {}
+    if args.excel:
+        from review_mvp.excel_forms import build_forms_from_excel
+        excel_parent = args.input[0] if args.parent else (folders[0].parent if folders else args.input[0])
+        excel_map, _ = build_forms_from_excel(
+            args.excel, excel_parent, args.excel_password, args.mode or "complete",
+        )
+        print(f"已从 Excel 读取 {len(excel_map)} 家表单：{', '.join(excel_map) or '（无匹配文件夹）'}")
+
     submissions = []
     for folder in folders:
-        form_answers, form_mode, form_sid, source = resolve_form(folder, args.form)
+        form_answers, form_mode, form_sid, source = resolve_form(folder, args.form, excel_map)
         if source.endswith("兜底）"):
             print(f'⚠️ {folder.name}: 未找到表单，使用内置 DEFAULT_FORM（独立申报示例），结果可能不准。')
         mode = args.mode or form_mode or "partial"
