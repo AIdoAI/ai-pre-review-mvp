@@ -15,6 +15,83 @@ def normalize_company_name(name: str | None) -> str:
     return re.sub(r"\s+", "", unicodedata.normalize("NFKC", name))
 
 
+# ---- 终端友好排版（按显示宽度对齐；Markdown→纯文本）----
+
+def display_width(text: str) -> int:
+    """字符显示宽度：东亚宽/全角字符算 2，其余算 1。"""
+    return sum(2 if unicodedata.east_asian_width(c) in "WF" else 1 for c in text)
+
+
+def _pad(text: str, width: int) -> str:
+    return text + " " * max(0, width - display_width(text))
+
+
+def format_table(headers: list[str], rows: list[list[str]], gap: str = "  ") -> str:
+    """等宽对齐的纯文本表格（按显示宽度补空格，列间留 gap）。"""
+    cols = len(headers)
+    widths = [display_width(headers[i]) for i in range(cols)]
+    for row in rows:
+        for i in range(cols):
+            widths[i] = max(widths[i], display_width(row[i] if i < len(row) else ""))
+    def line(cells: list[str]) -> str:
+        return gap.join(_pad(cells[i] if i < len(cells) else "", widths[i]) for i in range(cols))
+    sep = gap.join("-" * widths[i] for i in range(cols))
+    return "\n".join([line(headers), sep] + [line(r) for r in rows])
+
+
+def _md_cells(line: str) -> list[str]:
+    s = line.strip()
+    s = s[1:] if s.startswith("|") else s
+    s = s[:-1] if s.endswith("|") else s
+    return [c.strip() for c in s.split("|")]
+
+
+def _is_md_separator(line: str) -> bool:
+    return bool(re.match(r"^\s*\|?[\s:|\-]+\|?\s*$", line)) and "-" in line
+
+
+def _clean_md_line(s: str) -> str:
+    s = re.sub(r"^\s{0,3}#{1,6}\s*", "", s)   # 去标题 #
+    s = re.sub(r"^\s{0,3}>\s?", "", s)         # 去引用 >
+    return s.replace("**", "").replace("`", "")
+
+
+def to_terminal(md: str, max_cell: int = 30) -> str:
+    """把含 Markdown 表格的报告文本转成终端友好排版：
+    短表→等宽对齐表；含长文字的表→清单式（标题 + 缩进键值）；其余去掉 #/**/> 记号。
+    """
+    lines = md.split("\n")
+    out: list[str] = []
+    i, n = 0, len(lines)
+    while i < n:
+        if lines[i].lstrip().startswith("|") and i + 1 < n and _is_md_separator(lines[i + 1]):
+            headers = _md_cells(lines[i])
+            i += 2
+            rows: list[list[str]] = []
+            while i < n and lines[i].lstrip().startswith("|") and not _is_md_separator(lines[i]):
+                rows.append(_md_cells(lines[i]))
+                i += 1
+            maxw = max([display_width(c) for c in headers]
+                       + [display_width(c) for r in rows for c in r] + [0])
+            if maxw <= max_cell:
+                out.append(format_table(headers, rows))
+            else:  # 有长单元格 → 清单式
+                for r in rows:
+                    start, title = 1, (r[0] if r else "")
+                    if len(r) > 1 and display_width(r[0]) <= 4:  # 如"序号"列
+                        title, start = f"{r[0]}  {r[1]}", 2
+                    out.append(f"• {title}")
+                    for j in range(start, len(headers)):
+                        val = r[j] if j < len(r) else ""
+                        if val and val != "—":
+                            out.append(f"    {headers[j]}：{val}")
+                    out.append("")
+        else:
+            out.append(_clean_md_line(lines[i]))
+            i += 1
+    return "\n".join(out)
+
+
 STATUS_LABELS = {
     "pass": "通过",
     "fail": "不通过",

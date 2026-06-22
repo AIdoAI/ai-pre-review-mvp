@@ -149,19 +149,20 @@ def main() -> None:
     manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
     results = run_manifest(manifest_path, output)
 
+    from review_mvp.report import to_terminal
     if len(results) == 1:
         res = results[0]
-        print("\n" + res["conclusion"])
-        print("\n" + res["per_file_report"])
+        print("\n" + to_terminal(res["conclusion"]))
+        print("\n" + to_terminal(res["per_file_report"]))
         print(f'\n完整报告：{res["output_dir"]}/review_report.md')
     else:
-        # 批量也在终端统一打印：先总表，再逐家"统一结论 + 逐文件表"（与文件内容一致）
-        print("\n========== 批次总表 batch_summary.md ==========")
-        print((output / "batch_summary.md").read_text(encoding="utf-8"))
+        # 批量也在终端统一打印：先总表，再逐家"统一结论 + 逐文件表"（终端友好排版）
+        print("\n========== 批次总表 ==========")
+        print(to_terminal((output / "batch_summary.md").read_text(encoding="utf-8")))
         for res in results:
             print(f'\n========== 【{res["name"]}】 ==========')
-            print(res["conclusion"])
-            print("\n" + res["per_file_report"])
+            print(to_terminal(res["conclusion"]))
+            print("\n" + to_terminal(res["per_file_report"]))
             print(f'报告文件：{res["output_dir"]}/review_report.md')
         print(f'\n批量摘要：{output}/batch_summary.md')
 
