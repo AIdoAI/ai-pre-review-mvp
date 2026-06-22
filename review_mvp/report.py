@@ -665,21 +665,44 @@ def render_per_file_report(
     return "\n".join(lines)
 
 
+STATUS_SHORT = {
+    "预审不通过": "❌ 不通过",
+    "待人工复核": "⚠️ 待人工",
+    "建议补正": "🟡 建议补正",
+    "预审通过": "✅ 通过",
+    "局部样本验证完成": "❓ 局部样本",
+}
+_COMPANY_SUFFIXES = ("股份有限公司", "有限责任公司", "集团有限公司", "有限公司")
+
+
+def _short_company(name: str) -> str:
+    for suf in _COMPANY_SUFFIXES:
+        if name.endswith(suf):
+            return name[: -len(suf)]
+    return name
+
+
+def _short_sample(name: str) -> str:
+    m = re.match(r"^(?:参赛)?用户(\w+)$", name)
+    return m.group(1) if m else name
+
+
 def render_batch_summary(items: list[dict[str, Any]]) -> str:
+    """批次总表：精简 4 列（样本/主体/状态/计数），列少更好对齐与扫读。"""
     lines = [
         "# AI预审本地MVP批量测试摘要",
         "",
-        "| 样本 | 牵头单位/申报主体 | 综合状态 | 识别材料数 | 通过 | 不通过 | 待人工复核 | 无法判断 |",
-        "|---|---|---|---:|---:|---:|---:|---:|",
+        "| 样本 | 主体 | 状态 | 通过/不通过/待人工/无法判断 |",
+        "|---|---|---|---|",
     ]
     for item in items:
-        counts = item["rule_results"]["counts"]
-        unit = applicant_unit_name(
+        c = item["rule_results"]["counts"]
+        _, name, _, dtype = _resolve_main_unit(
             item.get("subject_structure", {}), item.get("extracted", [])
-        ).replace("|", " ")
-        lines.append(
-            f'| {item["name"]} | {unit} | {item["rule_results"]["overall_status"]} | '
-            f'{len(item["materials"])} | {counts["pass"]} | {counts["fail"]} | '
-            f'{counts["manual_review"]} | {counts["not_assessable"]} |'
         )
+        decl = "（独立）" if dtype == "independent" else ("（联合）" if dtype == "joint" else "")
+        subject = (_short_company(name) + decl).replace("|", " ")
+        status = STATUS_SHORT.get(item["rule_results"]["overall_status"], item["rule_results"]["overall_status"])
+        counts = f'{c["pass"]} / {c["fail"]} / {c["manual_review"]} / {c["not_assessable"]}'
+        lines.append(f'| {_short_sample(item["name"])} | {subject} | {status} | {counts} |')
     return "\n".join(lines) + "\n"
