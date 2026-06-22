@@ -155,16 +155,15 @@ def main() -> None:
         print("\n" + res["per_file_report"])
         print(f'\n完整报告：{res["output_dir"]}/review_report.md')
     else:
-        print("\n========== 批量结果 ==========")
-        for res in results:
-            rr = res["rule_results"]
-            print(f'- {res["name"]}：{rr["overall_status"]}'
-                  f'（通过{rr["counts"]["pass"]} 不通过{rr["counts"]["fail"]}'
-                  f' 待人工{rr["counts"]["manual_review"]} 无法判断{rr["counts"]["not_assessable"]}）')
-        print("\n========== batch_summary.md ==========")
+        # 批量也在终端统一打印：先总表，再逐家"统一结论 + 逐文件表"（与文件内容一致）
+        print("\n========== 批次总表 batch_summary.md ==========")
         print((output / "batch_summary.md").read_text(encoding="utf-8"))
-        print(f'批量摘要：{output}/batch_summary.md')
-        print(f'各样本报告：{output}/<样本名>/review_report.md')
+        for res in results:
+            print(f'\n========== 【{res["name"]}】 ==========')
+            print(res["conclusion"])
+            print("\n" + res["per_file_report"])
+            print(f'报告文件：{res["output_dir"]}/review_report.md')
+        print(f'\n批量摘要：{output}/batch_summary.md')
 
 
 if __name__ == "__main__":
