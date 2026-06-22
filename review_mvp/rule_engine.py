@@ -7,6 +7,7 @@ import re
 from pathlib import Path
 from typing import Any
 
+from .report import normalize_company_name
 from .subject_structure import entity_material_findings
 
 
@@ -338,23 +339,24 @@ def run_rules(
         "法定代表人无重大违法记录声明函",
         "信用记录证明",
     }
-    company_names: dict[str, set[str]] = {}
+    # 按归一化名分组（全角/半角、空白差异不算不一致），展示用原始写法
+    company_groups: dict[str, str] = {}
     for item in extracted:
         if item["document_type"] not in trusted_company_name_materials:
             continue
         value = field_value(item, "company_name")
         if value:
-            company_names.setdefault(value, set()).add(item["document_type"])
-    if len(company_names) > 1:
+            company_groups.setdefault(normalize_company_name(value), value)
+    if len(company_groups) > 1:
         results.append(
             result(
                 "MR-COMPANY-CONSISTENCY",
                 "manual_review",
                 "跨材料单位名称一致性",
-                "识别到多个单位名称：" + "；".join(company_names),
+                "识别到多个单位名称：" + "；".join(company_groups.values()),
             )
         )
-    elif company_names:
+    elif company_groups:
         results.append(
             result(
                 "MR-COMPANY-CONSISTENCY",

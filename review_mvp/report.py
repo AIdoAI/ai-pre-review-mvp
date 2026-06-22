@@ -5,6 +5,14 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 import re
+import unicodedata
+
+
+def normalize_company_name(name: str | None) -> str:
+    """归一化单位名用于比对：全角→半角（NFKC，含括号/数字/字母）、去所有空白。"""
+    if not name:
+        return ""
+    return re.sub(r"\s+", "", unicodedata.normalize("NFKC", name))
 
 
 STATUS_LABELS = {
@@ -384,7 +392,7 @@ def _resolve_main_unit(
 
     if not _looks_placeholder(form_name):
         name, note = form_name, ""
-        if extracted_name and extracted_name != form_name:
+        if extracted_name and normalize_company_name(extracted_name) != normalize_company_name(form_name):
             note = f"（材料中识别为「{extracted_name}」，需核对）"
     elif extracted_name:
         name = extracted_name
