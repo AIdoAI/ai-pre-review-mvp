@@ -21,3 +21,6 @@ samples_private/
 .env
 .env.*
 *.log
+
+# 手册渲染截图（本地预览用）
+.render_*/
