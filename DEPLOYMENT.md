@@ -73,8 +73,11 @@ python3.13 run_sample.py --input "/路径/所有样本" --parent
 Excel 驱动（"导出 Excel + 参赛用户文件夹"工作流，自动按文件夹生成各家表单）：
 ```bash
 python3.13 run_sample.py --input "/路径/某批次父目录" --parent \
-  --excel "/路径/某批次父目录/3客明细.xlsx" --excel-password 8fai123
+  --excel "/路径/某批次父目录/明细.xlsx" --excel-password 8fai123 \
+  --output "/路径/某批次父目录/_预审结果"
 ```
+- 支持嵌套结构（`参赛用户N/证明材料X/项目名/文件`，自动递归）；Excel 自动选含"申报方式+单位名称"的 sheet（如「申报主表」）。
+- `--output` 把结果归到本批次文件夹下的 `_预审结果`，多人多批不混；省略则写默认 `output_folder_review/`。
 - 按 Excel「提交项目任务书」文件名前缀的数字 ↔ `参赛用户{N}` 文件夹名匹配；自动映射申报方式、
   联合材料三选一、阶段、申报主体/联合成员。单位性质不从 Excel 采信（按铁律留空、由材料人工核实）。
 - 需要可选依赖：`pip install openpyxl`（读 xlsx）；Excel 加密时再装 `pip install msoffcrypto-tool`，
