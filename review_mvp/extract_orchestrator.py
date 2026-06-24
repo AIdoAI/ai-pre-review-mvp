@@ -17,15 +17,17 @@ Tiers
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import subprocess
 import time
 from pathlib import Path
 from typing import Any
 
-# 文件名 → 角色（粗判，决定是否值得花重 OCR）。辅助材料不参与缺失判定。
+# 文件名/相对路径 → 角色（粗判，决定是否值得花重 OCR）。辅助材料不参与缺失判定。
 AUXILIARY_FILENAME_HINTS = (
-    "荣誉", "研发能力", "专利", "软著", "软件著作权", "奖", "资质证书", "证书",
+    "荣誉", "研发能力", "研发资质", "综合实力", "专利", "软著", "软件著作权",
+    "奖", "资质证书", "证书",
 )
 TEXT_EXTS = {".pdf"}
 IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".bmp", ".tif", ".tiff", ".webp"}
@@ -199,6 +201,7 @@ def extract_file(
     path: Path,
     cache_dir: Path,
     *,
+    rel: Path | None = None,
     local_timeout: int = 60,
     mineru_timeout: int = 180,
     min_coverage: float = 0.6,
@@ -206,10 +209,17 @@ def extract_file(
     backoff: int = 5,
     chunk_pages: int = 8,
 ) -> dict[str, Any]:
-    """单文件分层抽取，返回带 parse_status 的清单条目。"""
-    original = path.name
+    """单文件分层抽取，返回带 parse_status 的清单条目。
+
+    rel：文件相对样本根目录的路径（递归时用），作为展示名与唯一缓存键，避免不同
+    子目录里同名文件互相覆盖缓存。
+    """
+    original = str(rel) if rel is not None else path.name
     role = guess_role(original)
-    out_json = cache_dir / f"{path.stem}.json"
+    key = re.sub(r"[^\w.\-一-鿿]+", "_", str(rel)) if rel is not None else path.stem
+    out_json = cache_dir / f"{key}.json"
+    raw_dir = cache_dir / "_raw"
+    raw_dir.mkdir(parents=True, exist_ok=True)
     suffix = path.suffix.lower()
     partial_items: list[dict[str, Any]] = []
     page_count = 1  # 图片/未知默认 1 页
@@ -246,7 +256,7 @@ def extract_file(
 
     # Tier 2：MinerU 精度（图片，或 required 低覆盖的扫描件）；含重试 + 大文件分块
     items, complete = mineru_extract(
-        path, cache_dir, ocr=True, timeout=mineru_timeout, page_count=page_count,
+        path, raw_dir, ocr=True, timeout=mineru_timeout, page_count=page_count,
         chunk_pages=chunk_pages, retries=retries, backoff=backoff,
     )
     if items:
@@ -281,16 +291,22 @@ def orchestrate_folder(
     cache_dir: Path,
     **budgets: Any,
 ) -> tuple[list[dict[str, Any]], list[str]]:
-    """对文件夹内所有 PDF/图片分层抽取到 cache_dir，返回 (清单条目, 日志行)。"""
+    """递归抽取文件夹内所有 PDF/图片/Excel 到 cache_dir，返回 (清单条目, 日志行)。
+
+    支持嵌套子目录（如 参赛用户N/证明材料X/项目名/文件）；跳过 .DS_Store 等隐藏项。
+    """
     input_folder = Path(input_folder)
     cache_dir = Path(cache_dir)
     cache_dir.mkdir(parents=True, exist_ok=True)
     entries: list[dict[str, Any]] = []
     log: list[str] = []
-    for path in sorted(p for p in input_folder.iterdir() if p.is_file()):
+    for path in sorted(p for p in input_folder.rglob("*") if p.is_file()):
+        rel = path.relative_to(input_folder)
+        if any(part.startswith(".") for part in rel.parts):  # 跳过 .DS_Store / 隐藏目录
+            continue
         if path.suffix.lower() not in TEXT_EXTS | IMAGE_EXTS | XLSX_EXTS:
             continue
-        entry = extract_file(path, cache_dir, **budgets)
+        entry = extract_file(path, cache_dir, rel=rel, **budgets)
         entries.append(entry)
         log.append(
             f'  [{entry["parse_status"]:7}] {entry["extract_tier"]:28} {entry["original_file"]}'

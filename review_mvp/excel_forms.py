@@ -16,6 +16,22 @@ from pathlib import Path
 from typing import Any
 
 
+def _pick_applicant_sheet(wb: Any):
+    """选含参赛信息的 sheet（表头同时含"申报方式"和"单位名称"）；否则按名/退回首个。"""
+    for ws in wb.worksheets:
+        try:
+            first = next(ws.iter_rows(values_only=True))
+        except StopIteration:
+            continue
+        hdr = [("" if c is None else str(c).strip()) for c in first]
+        if any("申报方式" in h for h in hdr) and any("单位名称" in h for h in hdr):
+            return ws
+    for name in ("申报主表", "主表"):
+        if name in wb.sheetnames:
+            return wb[name]
+    return wb.worksheets[0]
+
+
 def _load_rows(path: Path, password: str | None) -> list[dict[str, str]]:
     try:
         import openpyxl
@@ -38,7 +54,7 @@ def _load_rows(path: Path, password: str | None) -> list[dict[str, str]]:
             office.decrypt(buf)
         import openpyxl as _o
         wb = _o.load_workbook(buf, data_only=True, read_only=True)
-    ws = wb.worksheets[0]
+    ws = _pick_applicant_sheet(wb)
     rows = list(ws.iter_rows(values_only=True))
     if not rows:
         return []
