@@ -23,15 +23,21 @@ def pattern_hits(text: str, patterns: list[str]) -> list[str]:
 
 
 def classify_text(text: str, material_types: list[dict[str, Any]]) -> dict[str, Any]:
+    head = compact(text[:1000])
     candidates: list[dict[str, Any]] = []
     for item in material_types:
-        starts = pattern_hits(text[:1000], item.get("start_patterns", []))
+        starts = [p for p in item.get("start_patterns", []) if re.search(p, head, re.IGNORECASE)]
         keywords = [keyword for keyword in item.get("keywords", []) if keyword.lower() in text.lower()]
         if not starts and not keywords:
             continue
         score = 0.25 + min(len(keywords) * 0.08, 0.32)
         if starts:
             score += 0.42
+            # 标题出现在文本最开头 → 文档自身标题，强加权；避免把正文里顺带提到别的
+            # 材料名（如任务书正文提到"联合申报协议"）误判成那种材料（尤其整篇 blob 时）。
+            earliest = min(m.start() for p in starts if (m := re.search(p, head, re.IGNORECASE)))
+            if earliest <= 30:
+                score += 0.33
         score += min(item.get("priority", 0) / 1000, 0.1)
         candidates.append(
             {
@@ -39,6 +45,7 @@ def classify_text(text: str, material_types: list[dict[str, Any]]) -> dict[str, 
                 "document_type": item["name"],
                 "category": item["category"],
                 "confidence": round(min(score, 0.99), 2),
+                "score": score,  # 未封顶原始分，用于排序（避免多个都触顶 0.99 后只能比优先级）
                 "start_hits": starts,
                 "keyword_hits": keywords,
                 "filename_hits": [],
@@ -56,7 +63,7 @@ def classify_text(text: str, material_types: list[dict[str, Any]]) -> dict[str, 
             "filename_hits": [],
             "priority": 0,
         }
-    return max(candidates, key=lambda item: (item["confidence"], item["priority"]))
+    return max(candidates, key=lambda item: (item["score"], item["priority"]))
 
 
 FILENAME_HINTS = [
