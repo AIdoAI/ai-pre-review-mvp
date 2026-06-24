@@ -155,6 +155,24 @@ def _mineru_call(
     return data if isinstance(data, list) else data.get("content_list", [])
 
 
+def mineru_flash_extract(path: Path, timeout: int = 180) -> list[dict[str, Any]] | None:
+    """MinerU flash-extract（免 token、含 OCR、一次调用无分块）→ content_list（单块 markdown）。
+
+    比精度版快且不依赖 token/配额，作为 OCR 首选；解析其 stdout markdown。失败/空→None。
+    """
+    try:
+        proc = subprocess.run(
+            [_exe("mineru-open-api"), "flash-extract", str(path)],
+            capture_output=True, timeout=timeout,
+        )
+    except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
+        return None
+    out = proc.stdout.decode("utf-8", "ignore")
+    out = re.sub(r"^Thinking\.\.\..*?\(flash\)\s*\n?", "", out, flags=re.S)  # 去状态行
+    out = re.sub(r"Done\s*$", "", out).strip()                               # 去结尾 Done
+    return [{"page_idx": 0, "type": "text", "text": out}] if out else None
+
+
 def _mineru_with_retry(
     path: Path, out_dir: Path, ocr: bool, timeout: int, pages: str | None,
     retries: int, backoff: int,
@@ -283,7 +301,14 @@ def extract_file(
                               "辅助材料且无文字层，转人工查看")
             partial_items = items  # required + 低覆盖 → 下方升级 OCR
 
-    # Tier 2：MinerU 精度（图片，或 required 低覆盖的扫描件）；含重试 + 大文件分块
+    # Tier 2a：MinerU flash 优先（免 token、含 OCR、一次调用，快且稳）
+    items = mineru_flash_extract(path, timeout=mineru_timeout)
+    if items:
+        _write_content_list(out_json, items)
+        return _entry(out_json, original, "success", "mineru_flash",
+                      "MinerU flash 抽取（OCR，免 token）")
+
+    # Tier 2b：精度 OCR 兜底（含重试 + 大文件分块）
     items, complete = mineru_extract(
         path, raw_dir, ocr=True, timeout=mineru_timeout, page_count=page_count,
         chunk_pages=chunk_pages, retries=retries, backoff=backoff,
@@ -318,27 +343,37 @@ def _entry(path: Path, original: str, status: str, tier: str, note: str) -> dict
 def orchestrate_folder(
     input_folder: Path,
     cache_dir: Path,
+    *,
+    progress: bool = True,
     **budgets: Any,
 ) -> tuple[list[dict[str, Any]], list[str]]:
-    """递归抽取文件夹内所有 PDF/图片/Excel 到 cache_dir，返回 (清单条目, 日志行)。
+    """递归抽取文件夹内所有 PDF/图片/Word/Excel 到 cache_dir，返回 (清单条目, 日志行)。
 
     支持嵌套子目录（如 参赛用户N/证明材料X/项目名/文件）；跳过 .DS_Store 等隐藏项。
+    progress=True 时**逐文件实时打印**进度（每抽完一个就刷新输出），避免长时间无输出看着像卡死。
     """
     input_folder = Path(input_folder)
     cache_dir = Path(cache_dir)
     cache_dir.mkdir(parents=True, exist_ok=True)
+    todo = [
+        p for p in sorted(input_folder.rglob("*"))
+        if p.is_file()
+        and not any(part.startswith(".") for part in p.relative_to(input_folder).parts)
+        and p.suffix.lower() in TEXT_EXTS | IMAGE_EXTS | XLSX_EXTS | DOCX_EXTS
+    ]
+    if progress:
+        print(f"  共 {len(todo)} 个文件待抽取（扫描件走 OCR 会慢，逐个显示进度）...", flush=True)
     entries: list[dict[str, Any]] = []
     log: list[str] = []
-    for path in sorted(p for p in input_folder.rglob("*") if p.is_file()):
+    for index, path in enumerate(todo, start=1):
         rel = path.relative_to(input_folder)
-        if any(part.startswith(".") for part in rel.parts):  # 跳过 .DS_Store / 隐藏目录
-            continue
-        if path.suffix.lower() not in TEXT_EXTS | IMAGE_EXTS | XLSX_EXTS | DOCX_EXTS:
-            continue
         entry = extract_file(path, cache_dir, rel=rel, **budgets)
         entries.append(entry)
-        log.append(
-            f'  [{entry["parse_status"]:7}] {entry["extract_tier"]:28} {entry["original_file"]}'
-            f'  —— {entry["extract_note"]}'
+        line = (
+            f'  ({index}/{len(todo)}) [{entry["parse_status"]:7}] {entry["extract_tier"]:18} '
+            f'{entry["original_file"]} —— {entry["extract_note"]}'
         )
+        log.append(line)
+        if progress:
+            print(line, flush=True)
     return entries, log

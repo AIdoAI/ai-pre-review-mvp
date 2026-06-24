@@ -13,10 +13,10 @@ from review_mvp.extract_orchestrator import orchestrate_folder
 from review_mvp.folder_review import build_folder_manifest, collect_form_answers, scan_sample_folder
 from review_mvp.pipeline import run_manifest
 
-# Windows 控制台默认 GBK，打印 ✅⚠️❌ 等 emoji 会崩溃；统一切到 UTF-8（不可渲染字符以 ? 替代）。
+# Windows 控制台默认 GBK，打印 ✅⚠️❌ 等 emoji 会崩溃；统一切 UTF-8（不可渲染以 ? 替代）+ 按行刷新。
 for _s in (sys.stdout, sys.stderr):
     try:
-        _s.reconfigure(encoding="utf-8", errors="replace")
+        _s.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
     except Exception:
         pass
 

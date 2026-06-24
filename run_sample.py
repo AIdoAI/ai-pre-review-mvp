@@ -34,10 +34,10 @@ from review_mvp.folder_review import safe_submission_id, scan_sample_folder
 from review_mvp.pipeline import run_manifest
 
 # Windows 控制台默认 GBK，打印 ✅⚠️❌ 等 emoji 会 UnicodeEncodeError 崩溃。
-# 统一把 stdout/stderr 切到 UTF-8（渲染不了的字符以 ? 替代，不报错）。
+# 统一切 UTF-8（渲染不了的字符以 ? 替代）；并行缓冲改为按行刷新，避免长时间无输出看着像卡死。
 for _s in (sys.stdout, sys.stderr):
     try:
-        _s.reconfigure(encoding="utf-8", errors="replace")
+        _s.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
     except Exception:
         pass
 
@@ -97,10 +97,8 @@ def build_submission(
     if scan["mineru_files"]:
         files = scan["mineru_files"]
     else:
-        print(f'  [{folder.name}] 无现成 MinerU JSON，启动抽取编排层...')
-        files, log = orchestrate_folder(folder, output / "_mineru_cache" / folder.name)
-        for line in log:
-            print(line)
+        print(f'  [{folder.name}] 无现成 MinerU JSON，启动抽取编排层（逐文件实时显示进度）...', flush=True)
+        files, _ = orchestrate_folder(folder, output / "_mineru_cache" / folder.name, progress=True)
         if not files:
             # 空/全不支持格式：不中断整批，按"无材料→局部模式→转人工"记一笔继续
             print(f'  ⚠️ [{folder.name}] 未抽到可处理材料，转人工，跳过自动判缺（不中断本批）。')
