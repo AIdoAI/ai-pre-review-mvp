@@ -25,12 +25,21 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 from typing import Any
 
 from review_mvp.extract_orchestrator import orchestrate_folder
 from review_mvp.folder_review import safe_submission_id, scan_sample_folder
 from review_mvp.pipeline import run_manifest
+
+# Windows 控制台默认 GBK，打印 ✅⚠️❌ 等 emoji 会 UnicodeEncodeError 崩溃。
+# 统一把 stdout/stderr 切到 UTF-8（渲染不了的字符以 ? 替代，不报错）。
+for _s in (sys.stdout, sys.stderr):
+    try:
+        _s.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 
 # 未找到任何表单时兜底使用；建议每个样本放 form.json 或用 --form。
 DEFAULT_FORM: dict[str, Any] = {

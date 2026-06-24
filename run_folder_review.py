@@ -6,11 +6,19 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sys
 from pathlib import Path
 
 from review_mvp.extract_orchestrator import orchestrate_folder
 from review_mvp.folder_review import build_folder_manifest, collect_form_answers, scan_sample_folder
 from review_mvp.pipeline import run_manifest
+
+# Windows 控制台默认 GBK，打印 ✅⚠️❌ 等 emoji 会崩溃；统一切到 UTF-8（不可渲染字符以 ? 替代）。
+for _s in (sys.stdout, sys.stderr):
+    try:
+        _s.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 
 
 def main() -> None:
