@@ -34,6 +34,53 @@ TEXT_EXTS = {".pdf"}
 IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".bmp", ".tif", ".tiff", ".webp"}
 XLSX_EXTS = {".xlsx", ".xlsm"}
 DOCX_EXTS = {".docx"}
+ZIP_EXTS = {".zip"}
+
+
+def _processable(suffix: str) -> bool:
+    return suffix.lower() in TEXT_EXTS | IMAGE_EXTS | XLSX_EXTS | DOCX_EXTS
+
+
+def _zip_member_name(zinfo: Any) -> str:
+    """修正 zip 内中文文件名：Windows 压缩常用 GBK，zipfile 默认按 cp437 解会乱码。"""
+    name = zinfo.filename
+    if zinfo.flag_bits & 0x800:  # 已标记 UTF-8
+        return name
+    try:
+        return name.encode("cp437").decode("gbk")
+    except Exception:
+        return name
+
+
+def extract_zip(zip_path: Path, dest_dir: Path) -> list[tuple[Path, Path]]:
+    """把 zip 里可处理的文件解到 dest_dir，返回 [(解出的真实路径, zip内相对路径)]。
+
+    解到缓存目录、不动用户原 zip；跳过目录/隐藏项/__MACOSX；中文名按 GBK 修正。
+    """
+    import zipfile
+    out: list[tuple[Path, Path]] = []
+    try:
+        zf = zipfile.ZipFile(zip_path)
+    except Exception:
+        return out
+    with zf:
+        for zinfo in zf.infolist():
+            if zinfo.is_dir():
+                continue
+            rel = Path(_zip_member_name(zinfo))
+            if any(part.startswith(".") or part == "__MACOSX" for part in rel.parts):
+                continue
+            if not _processable(rel.suffix):
+                continue
+            target = dest_dir / rel
+            target.parent.mkdir(parents=True, exist_ok=True)
+            try:
+                with zf.open(zinfo) as src, open(target, "wb") as dst:
+                    dst.write(src.read())
+            except Exception:
+                continue
+            out.append((target, rel))
+    return out
 
 
 def docx_to_content_list(path: Path) -> list[dict[str, Any]] | None:
@@ -355,18 +402,25 @@ def orchestrate_folder(
     input_folder = Path(input_folder)
     cache_dir = Path(cache_dir)
     cache_dir.mkdir(parents=True, exist_ok=True)
-    todo = [
-        p for p in sorted(input_folder.rglob("*"))
-        if p.is_file()
-        and not any(part.startswith(".") for part in p.relative_to(input_folder).parts)
-        and p.suffix.lower() in TEXT_EXTS | IMAGE_EXTS | XLSX_EXTS | DOCX_EXTS
-    ]
+    # 收集待抽取的 (真实路径, 展示用相对路径)；zip 先解压再纳入，展示路径保留 zip 名层级。
+    todo: list[tuple[Path, Path]] = []
+    for p in sorted(input_folder.rglob("*")):
+        if not p.is_file():
+            continue
+        rel = p.relative_to(input_folder)
+        if any(part.startswith(".") or part == "__MACOSX" for part in rel.parts):
+            continue
+        if p.suffix.lower() in ZIP_EXTS:
+            unzip_dir = cache_dir / "_unzip" / re.sub(r"[^\w.\-一-鿿]+", "_", str(rel))
+            for inner_path, inner_rel in extract_zip(p, unzip_dir):
+                todo.append((inner_path, rel / inner_rel))
+        elif _processable(p.suffix):
+            todo.append((p, rel))
     if progress:
         print(f"  共 {len(todo)} 个文件待抽取（扫描件走 OCR 会慢，逐个显示进度）...", flush=True)
     entries: list[dict[str, Any]] = []
     log: list[str] = []
-    for index, path in enumerate(todo, start=1):
-        rel = path.relative_to(input_folder)
+    for index, (path, rel) in enumerate(todo, start=1):
         entry = extract_file(path, cache_dir, rel=rel, **budgets)
         entries.append(entry)
         line = (
