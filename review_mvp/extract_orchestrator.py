@@ -24,11 +24,11 @@ import time
 from pathlib import Path
 from typing import Any
 
-# 文件名 → 角色（粗判，决定是否值得花重 OCR）。辅助材料不参与缺失判定。
-# 注意：按"文件名"判，不按所在文件夹——否则审计报告(财务,必传)会被"综合实力与研发资质"
-# 文件夹名误判为辅助而跳过 OCR。
+# 角色粗判（决定是否值得花重 OCR + 是否可折叠）。辅助材料不参与缺失判定。
+# 按"完整相对路径"判（含文件夹名），但只用**纯辅助类**特征词：避免把"综合实力与研发资质"
+# 这种混合目录（内含审计报告=财务必传）整体误判为辅助。
 AUXILIARY_FILENAME_HINTS = (
-    "荣誉", "研发能力", "专利", "软著", "软件著作权", "奖", "资质证书", "证书",
+    "荣誉", "获奖", "奖项", "研发能力", "专利", "软著", "软件著作权", "资质证书", "证书",
 )
 TEXT_EXTS = {".pdf"}
 IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".bmp", ".tif", ".tiff", ".webp"}
@@ -301,7 +301,7 @@ def extract_file(
     子目录里同名文件互相覆盖缓存。
     """
     original = str(rel) if rel is not None else path.name
-    role = guess_role(path.name)  # 按文件名判角色（不受所在文件夹名干扰）
+    role = guess_role(original)  # 按完整相对路径判角色（纯辅助目录如"软件著作权/"也能识别）
     key = re.sub(r"[^\w.\-一-鿿]+", "_", str(rel)) if rel is not None else path.stem
     out_json = cache_dir / f"{key}.json"
     raw_dir = cache_dir / "_raw"
@@ -392,6 +392,7 @@ def orchestrate_folder(
     cache_dir: Path,
     *,
     progress: bool = True,
+    aux_dir_cap: int = 3,
     **budgets: Any,
 ) -> tuple[list[dict[str, Any]], list[str]]:
     """递归抽取文件夹内所有 PDF/图片/Word/Excel 到 cache_dir，返回 (清单条目, 日志行)。
@@ -416,7 +417,27 @@ def orchestrate_folder(
                 todo.append((inner_path, rel / inner_rel))
         elif _processable(p.suffix):
             todo.append((p, rel))
+
+    # 辅助材料按目录折叠：同一目录下辅助件(软著/专利/荣誉等)只抽样若干份代表，其余不逐一处理。
+    # 辅助材料不参与缺失判定，无需逐个看；折叠后大幅提速、报告也不被上百份软著刷屏。
+    aux_total: dict[str, int] = {}
+    aux_kept: dict[str, int] = {}
+    capped: list[tuple[Path, Path]] = []
+    for path, rel in todo:
+        if guess_role(str(rel)) == "auxiliary":
+            folder = str(rel.parent)
+            aux_total[folder] = aux_total.get(folder, 0) + 1
+            if aux_kept.get(folder, 0) >= aux_dir_cap:
+                continue
+            aux_kept[folder] = aux_kept.get(folder, 0) + 1
+        capped.append((path, rel))
+    todo = capped
     if progress:
+        for folder, total in aux_total.items():
+            extra = total - aux_kept.get(folder, 0)
+            if extra > 0:
+                print(f"  📁 折叠辅助材料：{folder} 共 {total} 份 → 抽样 {aux_kept[folder]} 份代表，"
+                      f"其余 {extra} 份不逐一处理（辅助材料不参与缺失判定）", flush=True)
         print(f"  共 {len(todo)} 个文件待抽取（扫描件走 OCR 会慢，逐个显示进度）...", flush=True)
     entries: list[dict[str, Any]] = []
     log: list[str] = []
