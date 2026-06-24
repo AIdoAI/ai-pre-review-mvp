@@ -115,13 +115,21 @@ def row_to_form(row: dict[str, str]) -> dict[str, Any]:
     stage_raw = _col(row, "项目当前进展")
     stage = "building" if "正在建设" in stage_raw else ("planned" if "计划实施" in stage_raw else "other")
     lead_name = _col(row, "单位名称") or None
+    parent_name = _col(row, "所属集团/上级单位") or _col(row, "上级单位") or None
+
+    def _attach_parent(app: dict[str, Any]) -> dict[str, Any]:
+        # 非独立法人(分公司/分支机构)：绑定上级单位，HR-2.4 才去核专项授权而非直接判"未绑上级"
+        if not is_independent and parent_name:
+            app["parent_entity"] = {"entity_id": f'{app["entity_id"]}-PARENT', "entity_name": parent_name}
+        return app
 
     if not is_joint:
         return {
             "is_joint_declaration": False,
             "project_stage": stage,
             "applicants": [
-                {"entity_id": "E01", "entity_name": lead_name, "is_independent_legal_person": is_independent}
+                _attach_parent({"entity_id": "E01", "entity_name": lead_name,
+                                "is_independent_legal_person": is_independent})
             ],
         }
 
@@ -130,8 +138,8 @@ def row_to_form(row: dict[str, str]) -> dict[str, Any]:
         name = _partner_name(_col(row, col))
         if name:
             members.append(name)
-    applicants = [{"entity_id": "E01", "entity_name": lead_name, "is_lead": True,
-                   "is_independent_legal_person": is_independent}]
+    applicants = [_attach_parent({"entity_id": "E01", "entity_name": lead_name, "is_lead": True,
+                                  "is_independent_legal_person": is_independent})]
     for i, name in enumerate(members, start=2):
         applicants.append({"entity_id": f"E{i:02d}", "entity_name": name, "is_lead": False,
                            "is_independent_legal_person": True})

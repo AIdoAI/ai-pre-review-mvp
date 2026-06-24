@@ -190,7 +190,9 @@ class PipelineTests(unittest.TestCase):
             self.assertEqual(parse_rule["status"], "manual_review")
             self.assertIn("空白页[5, 6, 7, 8]", parse_rule["reason"])
 
-    def test_complete_successful_parse_can_fail_missing_required_material(self) -> None:
+    def test_complete_bulk_missing_required_downgrades_to_manual(self) -> None:
+        # 完整模式、单文件包→多项必传"未识别"≥阈值：大面积缺失保护把硬性 fail 降级为待人工，
+        # 避免对"材料打包/命名/解析问题"误退件（铁律：不轻易判不通过）。
         sample_manifest = json.loads(
             (ROOT / "local_review" / "config" / "sample_manifest.json").read_text(encoding="utf-8")
         )
@@ -216,7 +218,9 @@ class PipelineTests(unittest.TestCase):
                 item for item in results[0]["rule_results"]["results"]
                 if item["rule_id"] == "HR-2.1-CREDIT"
             )
-            self.assertEqual(missing_credit["status"], "fail")
+            # 大面积缺失 → 不硬卡，转人工复核
+            self.assertEqual(missing_credit["status"], "manual_review")
+            self.assertIn("转人工", missing_credit["reason"])
 
     def test_pipeline_outputs_structured_joint_application(self) -> None:
         sample_manifest = json.loads(

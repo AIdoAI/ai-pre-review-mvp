@@ -366,6 +366,18 @@ def run_rules(
             )
         )
 
+    # 大面积缺失保护：完整模式下若"未识别到必要材料"的 fail 达到阈值，多半是材料打包成一
+    # 份文件 / 命名异常 / 解析不清，而非真缺件 → 整体降级为待人工，避免误退件（铁律：不轻易判不通过）。
+    MISSING_BULK_THRESHOLD = 4
+    missing_fails = [
+        item for item in results
+        if item["status"] == "fail" and "未识别到" in item["reason"]
+    ]
+    if len(missing_fails) >= MISSING_BULK_THRESHOLD:
+        for item in missing_fails:
+            item["status"] = "manual_review"
+            item["reason"] += "（本包多项必传未识别，疑似材料打包/命名/解析问题，转人工核对整包，不据此自动退件）"
+
     status_order = {"fail": 4, "manual_review": 3, "warning": 2, "not_assessable": 1, "pass": 0}
     max_status = max((status_order[item["status"]] for item in results), default=0)
     if max_status == 4:
