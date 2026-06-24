@@ -24,14 +24,35 @@ import time
 from pathlib import Path
 from typing import Any
 
-# 文件名/相对路径 → 角色（粗判，决定是否值得花重 OCR）。辅助材料不参与缺失判定。
+# 文件名 → 角色（粗判，决定是否值得花重 OCR）。辅助材料不参与缺失判定。
+# 注意：按"文件名"判，不按所在文件夹——否则审计报告(财务,必传)会被"综合实力与研发资质"
+# 文件夹名误判为辅助而跳过 OCR。
 AUXILIARY_FILENAME_HINTS = (
-    "荣誉", "研发能力", "研发资质", "综合实力", "专利", "软著", "软件著作权",
-    "奖", "资质证书", "证书",
+    "荣誉", "研发能力", "专利", "软著", "软件著作权", "奖", "资质证书", "证书",
 )
 TEXT_EXTS = {".pdf"}
 IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".bmp", ".tif", ".tiff", ".webp"}
 XLSX_EXTS = {".xlsx", ".xlsm"}
+DOCX_EXTS = {".docx"}
+
+
+def docx_to_content_list(path: Path) -> list[dict[str, Any]] | None:
+    """读 .docx 为 content_list（stdlib zipfile，无依赖、跨平台）：按段落取文本（含表格单元格）。"""
+    import html
+    import zipfile
+    try:
+        with zipfile.ZipFile(path) as zf:
+            xml = zf.read("word/document.xml").decode("utf-8", "ignore")
+    except Exception:
+        return None
+    lines: list[str] = []
+    for para in re.split(r"</w:p>", xml):
+        runs = re.findall(r"<w:t[^>]*>(.*?)</w:t>", para, re.S)
+        text = html.unescape(re.sub(r"<[^>]+>", "", "".join(runs))).strip()
+        if text:
+            lines.append(text)
+    body = "\n".join(lines).strip()
+    return [{"page_idx": 0, "type": "text", "text": body}] if body else None
 
 
 def xlsx_to_content_list(path: Path, max_rows: int = 400) -> list[dict[str, Any]] | None:
@@ -215,7 +236,7 @@ def extract_file(
     子目录里同名文件互相覆盖缓存。
     """
     original = str(rel) if rel is not None else path.name
-    role = guess_role(original)
+    role = guess_role(path.name)  # 按文件名判角色（不受所在文件夹名干扰）
     key = re.sub(r"[^\w.\-一-鿿]+", "_", str(rel)) if rel is not None else path.stem
     out_json = cache_dir / f"{key}.json"
     raw_dir = cache_dir / "_raw"
@@ -232,6 +253,14 @@ def extract_file(
             return _entry(out_json, original, "success", "local_xlsx", "本地读取 Excel（openpyxl）")
         return _entry(path, original, "failed", "xlsx_failed->manual",
                       "Excel 读取失败或缺 openpyxl，转人工")
+
+    # Word：本地读取（zipfile 解 XML），不走网络/OCR
+    if suffix in DOCX_EXTS:
+        items = docx_to_content_list(path)
+        if items:
+            _write_content_list(out_json, items)
+            return _entry(out_json, original, "success", "local_docx", "本地读取 Word（.docx）")
+        return _entry(path, original, "failed", "docx_failed->manual", "Word 读取失败，转人工")
 
     # Tier 0：本地文字层（仅 PDF）
     if suffix in TEXT_EXTS:
@@ -304,7 +333,7 @@ def orchestrate_folder(
         rel = path.relative_to(input_folder)
         if any(part.startswith(".") for part in rel.parts):  # 跳过 .DS_Store / 隐藏目录
             continue
-        if path.suffix.lower() not in TEXT_EXTS | IMAGE_EXTS | XLSX_EXTS:
+        if path.suffix.lower() not in TEXT_EXTS | IMAGE_EXTS | XLSX_EXTS | DOCX_EXTS:
             continue
         entry = extract_file(path, cache_dir, rel=rel, **budgets)
         entries.append(entry)

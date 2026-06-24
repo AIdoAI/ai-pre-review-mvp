@@ -93,7 +93,12 @@ def build_submission(
         for line in log:
             print(line)
         if not files:
-            raise SystemExit(f"样本 {folder.name} 无可处理文件（PDF/图片）或 MinerU JSON。")
+            # 空/全不支持格式：不中断整批，按"无材料→局部模式→转人工"记一笔继续
+            print(f'  ⚠️ [{folder.name}] 未抽到可处理材料，转人工，跳过自动判缺（不中断本批）。')
+            return {
+                "submission_id": submission_id, "name": folder.name, "mode": "partial",
+                "form_answers": form_answers, "files": [],
+            }
     return {
         "submission_id": submission_id, "name": folder.name, "mode": mode,
         "form_answers": form_answers, "files": files,
