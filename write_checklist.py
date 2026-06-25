@@ -82,7 +82,10 @@ def main() -> None:
     ap.add_argument("--xlsx", type=Path, required=True, help="核查表 xlsx")
     ap.add_argument("--reviewer", default="AI预审", help="审核人列填什么")
     ap.add_argument("--password", help="xlsx 打开密码(如加密)")
+    ap.add_argument("--overwrite-reviewers", default="欧雨菲",
+                    help="逗号分隔：仅覆盖审核人为这些值(或空)的行；其他人已写的行跳过，避免冲掉同事/Codex 成果")
     args = ap.parse_args()
+    overwritable = {s.strip() for s in args.overwrite_reviewers.split(",")} | {"", "None"}
 
     import openpyxl
     if args.password:
@@ -116,6 +119,11 @@ def main() -> None:
         no = m.group(1)
         if no not in row_by_no:
             print(f"  ⚠️ {user}: 编号 {no} 不在核查表，跳过")
+            continue
+        cur_rev = ws.cell(row_by_no[no], col("审核人")).value
+        cur_rev = "" if cur_rev is None else str(cur_rev).strip()
+        if cur_rev not in overwritable:
+            print(f"  ⏭️ 用户{no}: 已由「{cur_rev}」填写，跳过(不覆盖同事/Codex 成果)")
             continue
         results = json.loads(rr_path.read_text(encoding="utf-8")).get("results", [])
         overall = json.loads(rr_path.read_text(encoding="utf-8")).get("overall_status", "")
